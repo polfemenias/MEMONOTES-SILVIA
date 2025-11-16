@@ -24,6 +24,14 @@ const ClassTabs: React.FC<ClassTabsProps> = ({ classGroups, selectedClassGroupId
     setNewClassName('');
     setIsAdding(false);
   };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+        handleConfirmAdd();
+    } else if (e.key === 'Escape') {
+        handleCancelAdd();
+    }
+  };
   
   return (
     <div className="bg-white rounded-lg shadow p-2">
@@ -47,6 +55,7 @@ const ClassTabs: React.FC<ClassTabsProps> = ({ classGroups, selectedClassGroupId
               type="text" 
               value={newClassName}
               onChange={e => setNewClassName(e.target.value)}
+              onKeyDown={handleKeyDown}
               className="p-1 border rounded-md text-sm"
               placeholder="Nom de la classe"
               autoFocus

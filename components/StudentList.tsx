@@ -29,6 +29,14 @@ const StudentList: React.FC<StudentListProps> = ({ students, onAddStudent, onSel
     setNewName('');
     setIsAdding(false);
   };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleConfirmAdd();
+    } else if (e.key === 'Escape') {
+      handleCancelAdd();
+    }
+  };
   
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -58,6 +66,7 @@ const StudentList: React.FC<StudentListProps> = ({ students, onAddStudent, onSel
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Nom de l'alumne/a..."
               className="w-full p-2 border rounded-md"
               autoFocus

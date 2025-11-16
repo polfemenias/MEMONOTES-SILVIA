@@ -50,6 +50,15 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, subjects, onUpda
       setIsAddingSubject(false);
     }
   };
+
+  const handleAddSubjectKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleConfirmAddSubject();
+    } else if (e.key === 'Escape') {
+      setIsAddingSubject(false);
+      setNewSubjectName('');
+    }
+  };
   
   const renderTabContent = () => {
     if (activeTab === 'personal') {
@@ -153,11 +162,13 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, subjects, onUpda
               type="text" 
               value={newSubjectName}
               onChange={e => setNewSubjectName(e.target.value)}
+              onKeyDown={handleAddSubjectKeyDown}
               className="p-1 border rounded-md text-sm"
               placeholder="Nova assignatura"
+              autoFocus
             />
             <button onClick={handleConfirmAddSubject} className="text-green-600 hover:text-green-800 text-xl font-bold">&#x2713;</button>
-            <button onClick={() => setIsAddingSubject(false)} className="text-red-600 hover:text-red-800 text-xl font-bold">&times;</button>
+            <button onClick={() => { setIsAddingSubject(false); setNewSubjectName(''); }} className="text-red-600 hover:text-red-800 text-xl font-bold">&times;</button>
           </div>
         ) : (
           <button onClick={() => setIsAddingSubject(true)} className="px-3 py-2 text-sky-600 hover:bg-sky-50 rounded-md text-sm">+</button>
