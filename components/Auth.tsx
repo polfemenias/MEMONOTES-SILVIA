@@ -11,6 +11,8 @@ const AuthComponent: React.FC = () => {
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!supabase) return;
+
     setLoading(true);
     setError('');
     setMessage('');
@@ -25,6 +27,8 @@ const AuthComponent: React.FC = () => {
 
   const handleSignUp = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!supabase) return;
+    
     setLoading(true);
     setError('');
     setMessage('');

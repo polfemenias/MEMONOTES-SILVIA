@@ -27,6 +27,21 @@ const App: React.FC = () => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
+  // Si el client de Supabase no s'ha pogut inicialitzar, mostrem un error per al desenvolupador.
+  if (!supabase) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
+        <div className="w-full max-w-lg p-8 space-y-4 bg-white rounded-lg shadow-md text-center">
+            <h1 className="text-2xl font-bold text-red-600">Error de Configuració</h1>
+            <p className="text-slate-700">L'aplicació no s'ha pogut connectar a la base de dades.</p>
+            <p className="text-sm text-slate-500">
+                (Nota per al desenvolupador: Si us plau, obre el fitxer <code>supabaseClient.ts</code> i substitueix els valors de les claus de Supabase.)
+            </p>
+        </div>
+      </div>
+    );
+  }
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -54,7 +69,7 @@ const App: React.FC = () => {
   }, [session]);
 
   const fetchData = async () => {
-    if (!session) return;
+    if (!session || !supabase) return;
     setLoading(true);
     try {
       // Fetch classes
@@ -119,7 +134,7 @@ const App: React.FC = () => {
   
   // --- Gestió de Classes (des de Settings) ---
   const handleAddClassGroup = async (name: string) => {
-    if (!session) return;
+    if (!session || !supabase) return;
     const { data, error } = await supabase
       .from('class_groups')
       .insert({ name: name, user_id: session.user.id })
@@ -139,12 +154,14 @@ const App: React.FC = () => {
   };
   
   const handleUpdateClassGroup = async (id: string, name: string) => {
+    if (!supabase) return;
     const { error } = await supabase.from('class_groups').update({ name }).eq('id', id);
     if (error) console.error("Error updating class group:", error);
     else setClassGroups(prev => prev.map(cg => cg.id === id ? { ...cg, name } : cg));
   };
 
   const handleDeleteClassGroup = async (id: string) => {
+    if (!supabase) return;
     const { error } = await supabase.from('class_groups').delete().eq('id', id);
     if (error) console.error("Error deleting class group:", error);
     else {
@@ -158,7 +175,7 @@ const App: React.FC = () => {
 
   // --- Gestió d'Alumnes ---
   const handleAddStudent = async (name: string) => {
-    if (!selectedClassGroupId) return;
+    if (!selectedClassGroupId || !supabase) return;
     
     const studentPayload = {
         name,
@@ -232,6 +249,7 @@ const App: React.FC = () => {
   };
 
   const handleUpdateStudent = async (updatedStudent: Student) => {
+      if (!supabase) return;
       // 1. Update student's own fields
       const { error: studentError } = await supabase
           .from('students')
@@ -266,6 +284,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteStudent = async (classGroupId: string, studentId: string) => {
+    if (!supabase) return;
     let originalIndex = -1;
     const classGroup = classGroups.find(cg => cg.id === classGroupId);
     if (classGroup) originalIndex = classGroup.students.findIndex(s => s.id === studentId);
@@ -296,7 +315,7 @@ const App: React.FC = () => {
 
   // --- Gestió d'Assignatures ---
   const handleAddSubject = async (subjectName: string) => {
-    if(!session) return;
+    if(!session || !supabase) return;
     const { data, error } = await supabase
         .from('subjects')
         .insert({ name: subjectName, worked_content: '', user_id: session.user.id })
@@ -313,6 +332,7 @@ const App: React.FC = () => {
   };
   
   const handleUpdateSubject = async (updatedSubject: Subject) => {
+    if (!supabase) return;
     const { error } = await supabase
         .from('subjects')
         .update({ name: updatedSubject.name, worked_content: updatedSubject.workedContent })
@@ -323,6 +343,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSubject = async (subjectId: string) => {
+    if (!supabase) return;
     const { error } = await supabase.from('subjects').delete().eq('id', subjectId);
     if(error) console.error("Error deleting subject:", error);
     else {
@@ -412,59 +433,76 @@ const App: React.FC = () => {
             disabled={isExporting}
             className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${ copySuccess ? 'bg-green-600 text-white' : isExporting ? 'bg-indigo-400 text-white cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700' }`} >
             {isExporting ? (
-                 <><svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Generant i Copiant...</>
-            ) : copySuccess ? (
-              <><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>Copiat!</>
-            ) : (
-              <><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" /><path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" /></svg>Copiar Informes de {selectedClassGroup.name}</>
-            )}
+                 <><svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Generant informes pendents...</>
+            ) : copySuccess ? 'Copiat al porta-retalls!' : 'Copiar Informes per a Esfera'}
           </button>
         )}
       </header>
-      
       <main className="p-4 md:p-8">
-        <ClassTabs 
-          classGroups={classGroups}
-          selectedClassGroupId={selectedClassGroupId}
-          onSelectClassGroup={handleSelectClassGroup}
-          onAddClassGroup={handleAddClassGroup}
-        />
-        <div className="grid grid-cols-1 lg:grid-cols-4 lg:items-start gap-8 mt-6">
-          <div className="lg:col-span-1">
-            {selectedClassGroup ? (
-              <StudentList 
-                students={currentStudents}
-                onAddStudent={handleAddStudent}
-                onSelectStudent={handleSelectStudent}
-                selectedStudentId={selectedStudentId}
-              />
-            ) : (
-              <div className="bg-white rounded-lg shadow p-6 text-center">
-                <p className="text-slate-500">Crea una classe a 'Configuració' per començar.</p>
-              </div>
-            )}
+        {!selectedClassGroup && classGroups.length > 0 && (
+          <div className="text-center p-10 bg-white rounded-lg shadow">
+            <h2 className="text-xl font-semibold">Selecciona una classe per començar.</h2>
           </div>
-          <div className="lg:col-span-3">
-            {selectedStudent ? (
-              <StudentDetail 
-                key={selectedStudent.id}
-                student={selectedStudent}
-                subjects={subjects}
-                onUpdateStudent={handleUpdateStudent}
-                onUpdateSubject={handleUpdateSubject}
-                onAddSubject={handleAddSubject}
-              />
-            ) : (
-              <div className="bg-white rounded-lg shadow p-8 text-center flex flex-col items-center justify-center h-full">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-slate-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                  <h2 className="text-xl font-semibold text-slate-600">Benvingut/da!</h2>
-                  <p className="text-slate-500 mt-2">
-                    {classGroups.length > 0 ? 'Selecciona un alumne o afegeix-ne un de nou per començar.' : 'Crea una classe des de la Configuració per començar a afegir alumnes.'}
-                  </p>
+        )}
+        {!selectedClassGroup && classGroups.length === 0 && (
+            <div className="text-center p-10 bg-white rounded-lg shadow">
+                <h2 className="text-xl font-semibold mb-4">Benvingut/da!</h2>
+                <p className="text-slate-600 mb-6">Sembla que encara no tens cap classe. Comença afegint-ne una.</p>
+                <ClassTabs 
+                    classGroups={classGroups}
+                    selectedClassGroupId={selectedClassGroupId}
+                    onSelectClassGroup={handleSelectClassGroup}
+                    onAddClassGroup={handleAddClassGroup}
+                />
+            </div>
+        )}
+        {selectedClassGroup && (
+          <>
+            <div className="mb-6">
+                <ClassTabs 
+                    classGroups={classGroups}
+                    selectedClassGroupId={selectedClassGroupId}
+                    onSelectClassGroup={handleSelectClassGroup}
+                    onAddClassGroup={handleAddClassGroup}
+                />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8">
+              <div className="md:col-span-1 lg:col-span-1">
+                <StudentList 
+                    students={currentStudents} 
+                    onAddStudent={handleAddStudent} 
+                    onSelectStudent={handleSelectStudent}
+                    selectedStudentId={selectedStudentId}
+                />
               </div>
-            )}
-          </div>
-        </div>
+              <div className="md:col-span-2 lg:col-span-3">
+                {selectedStudent ? (
+                  <StudentDetail 
+                    student={selectedStudent} 
+                    subjects={subjects} 
+                    onUpdateStudent={handleUpdateStudent}
+                    onUpdateSubject={handleUpdateSubject}
+                    onAddSubject={handleAddSubject}
+                  />
+                ) : (
+                    <div className="h-full flex items-center justify-center bg-white rounded-lg shadow p-10">
+                        <div className="text-center">
+                            <h3 className="text-xl font-semibold text-slate-700">
+                                {currentStudents.length > 0 ? 'Selecciona un/a alumne/a' : 'Afegeix un/a alumne/a per començar'}
+                            </h3>
+                            <p className="text-slate-500 mt-2">
+                                {currentStudents.length > 0 
+                                    ? 'Fes clic en un nom de la llista per veure i editar els seus informes.' 
+                                    : 'Utilitza el botó "Afegir Alumne/a" a l\'esquerra per poblar la teva classe.'
+                                }
+                            </p>
+                        </div>
+                    </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </main>
     </div>
   );

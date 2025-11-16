@@ -1,7 +1,19 @@
 import { GoogleGenAI } from "@google/genai";
 import type { Grade, Student, Subject, StudentSubject } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+// --- CONFIGURACIÓ OBLIGATÒRIA ---
+// Reemplaça aquest valor amb la teva clau d'API de Google AI Studio.
+// Pots aconseguir-ne una gratuïtament a https://aistudio.google.com/app/apikey
+const geminiApiKey = 'AIzaSyDfX8q1tnoMBtea2_F84W4ZwQBJ-jYoKqs';
+// ---------------------------------
+
+const isConfigured = !geminiApiKey.startsWith('REPLACE_');
+
+const ai = isConfigured ? new GoogleGenAI({ apiKey: geminiApiKey }) : null;
+
+if (!isConfigured) {
+  console.error("La clau de l'API de Gemini no està configurada al fitxer services/geminiService.ts. Les funcions d'IA no funcionaran.");
+}
 
 export type GenerationContext = 
   | { type: 'personal', student: Student, subjects: Subject[] }
@@ -13,6 +25,9 @@ export const generateReportComment = async (
   notes: string,
   context: GenerationContext
 ): Promise<string> => {
+  if (!ai) {
+    throw new Error("La clau de l'API de Gemini no està configurada. No es pot generar l'informe.");
+  }
 
   let prompt = '';
 
@@ -100,6 +115,12 @@ export const generateReportComment = async (
 
 // Nova funció per generar informes que falten per a tota una classe
 export const generateMissingReportsForClass = async (students: Student[], subjects: Subject[]): Promise<Student[]> => {
+    if (!ai) {
+      console.warn("La generació massiva d'informes s'ha omès perquè la clau de l'API de Gemini no està configurada.");
+      // Retornem els estudiants sense canvis per no bloquejar l'exportació i mostrar un error a l'usuari.
+      return Promise.reject(new Error("La generació automàtica no està disponible. Configura la clau de l'API de Gemini."));
+    }
+    
     // Clona profundament els estudiants per evitar mutacions directes de l'estat
     const studentsCopy = JSON.parse(JSON.stringify(students)) as Student[];
 
