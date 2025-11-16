@@ -36,6 +36,9 @@ const AuthComponent: React.FC = () => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: 'https://memonotessilvia.netlify.app/',
+      },
     });
 
     if (error) {

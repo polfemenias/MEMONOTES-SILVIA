@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Student, Subject, ClassGroup } from './types';
 import { Grade } from './types';
@@ -14,6 +15,7 @@ import { generateMissingReportsForClass } from './services/geminiService';
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSeeding, setIsSeeding] = useState(false); // State for initial data creation
   const [classGroups, setClassGroups] = useState<ClassGroup[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [viewMode, setViewMode] = useState<'main' | 'settings'>('main');
@@ -68,25 +70,107 @@ const App: React.FC = () => {
     }
   }, [session]);
 
+    const createInitialData = async (userId: string): Promise<{newSubjects: Subject[], newClassGroups: ClassGroup[]}> => {
+        if (!supabase) throw new Error("Supabase client not available");
+
+        // 1. Create Subjects
+        const { data: subjectData, error: subjectError } = await supabase
+            .from('subjects')
+            .insert([
+                { name: 'LLENGUA CATALANA', worked_content: 'Lectoescriptura, comprensió lectora, expressió escrita.', user_id: userId },
+                { name: 'MATEMÀTIQUES', worked_content: 'Numeració i càlcul, resolució de problemes, geometria.', user_id: userId },
+                { name: 'CONEIXEMENT DEL MEDI', worked_content: 'El cos humà, els éssers vius, el pas del temps.', user_id: userId },
+            ])
+            .select();
+        if (subjectError) throw subjectError;
+        
+        const newSubjects: Subject[] = subjectData.map(s => ({ id: s.id, name: s.name, workedContent: s.worked_content || '' }));
+
+        // 2. Create Classes
+        const { data: classData, error: classError } = await supabase
+            .from('class_groups')
+            .insert([
+                { name: 'CLASSE DELS DOFINS', user_id: userId },
+                { name: 'CLASSE DELS LLEONS', user_id: userId },
+                { name: 'CLASSE DE LES ÀLIGUES', user_id: userId },
+            ])
+            .select();
+        if (classError) throw classError;
+
+        const newClassGroups: ClassGroup[] = classData.map(cg => ({ id: cg.id, name: cg.name, students: [] }));
+
+        // 3. Create Students and their Subject relations for each class
+        for (const classGroup of newClassGroups) {
+            const studentPayload = [
+                { name: `ALUMNE/A 1 - ${classGroup.name.split(' ')[2]}`, class_group_id: classGroup.id, personal_aspects: { notes: '', report: '' }, general_comment: { notes: '', report: '' }, user_id: userId },
+                { name: `ALUMNE/A 2 - ${classGroup.name.split(' ')[2]}`, class_group_id: classGroup.id, personal_aspects: { notes: '', report: '' }, general_comment: { notes: '', report: '' }, user_id: userId },
+                { name: `ALUMNE/A 3 - ${classGroup.name.split(' ')[2]}`, class_group_id: classGroup.id, personal_aspects: { notes: '', report: '' }, general_comment: { notes: '', report: '' }, user_id: userId },
+            ];
+            const { data: studentData, error: studentError } = await supabase
+                .from('students')
+                .insert(studentPayload)
+                .select();
+            if (studentError) throw studentError;
+            
+            const newStudents: Student[] = studentData.map(s => ({
+                id: s.id, name: s.name, personalAspects: s.personal_aspects, generalComment: s.general_comment, subjects: []
+            }));
+
+            const studentSubjectsPayload = newStudents.flatMap(student => 
+                newSubjects.map(subject => ({
+                    student_id: student.id,
+                    subject_id: subject.id,
+                    grade: Grade.Satisfactori,
+                    comment: { notes: '', report: '' },
+                }))
+            );
+
+            if (studentSubjectsPayload.length > 0) {
+                const { error: ssError } = await supabase.from('student_subjects').insert(studentSubjectsPayload);
+                if (ssError) throw ssError;
+
+                newStudents.forEach(student => {
+                    student.subjects = studentSubjectsPayload
+                        .filter(ss => ss.student_id === student.id)
+                        .map(ss => ({ subjectId: ss.subject_id, grade: ss.grade, comment: ss.comment }));
+                });
+            }
+            classGroup.students = newStudents;
+        }
+        
+        return { newSubjects, newClassGroups };
+    };
+
+
   const fetchData = async () => {
     if (!session || !supabase) return;
     setLoading(true);
     try {
-      // Fetch classes
       const { data: classData, error: classError } = await supabase
         .from('class_groups')
         .select(`*, students(*, student_subjects(*))`)
         .order('created_at', { ascending: true });
       if (classError) throw classError;
+      
+      if (classData && classData.length === 0) {
+          setIsSeeding(true);
+          const { newSubjects, newClassGroups } = await createInitialData(session.user.id);
+          setSubjects(newSubjects);
+          setClassGroups(newClassGroups);
+          if (newClassGroups.length > 0) {
+            setSelectedClassGroupId(newClassGroups[0].id);
+          }
+          setIsSeeding(false);
+          setLoading(false);
+          return;
+      }
 
-      // Fetch subjects
       const { data: subjectData, error: subjectError } = await supabase
         .from('subjects')
         .select('*')
         .order('created_at', { ascending: true });
       if (subjectError) throw subjectError;
 
-      // Map Supabase data to our application types
       const fetchedSubjects: Subject[] = subjectData.map(s => ({
         id: s.id,
         name: s.name,
@@ -118,10 +202,10 @@ const App: React.FC = () => {
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
+      setIsSeeding(false);
     }
   };
 
-  // --- Funcions de navegació i selecció ---
   const handleSelectClassGroup = (id: string) => {
     setSelectedClassGroupId(id);
     const newClassGroup = classGroups.find(cg => cg.id === id);
@@ -132,7 +216,6 @@ const App: React.FC = () => {
     setSelectedStudentId(id);
   };
   
-  // --- Gestió de Classes (des de Settings) ---
   const handleAddClassGroup = async (name: string) => {
     if (!session || !supabase) return;
     const { data, error } = await supabase
@@ -142,28 +225,26 @@ const App: React.FC = () => {
       .single();
 
     if (error) {
-      console.error("Error adding class group:", error);
+      console.error("Error adding class group:", error.message);
     } else if (data) {
       const newClassGroup: ClassGroup = { id: data.id, name: data.name, students: [] };
       setClassGroups(prev => [...prev, newClassGroup]);
-       if (viewMode === 'main') {
-         setSelectedClassGroupId(newClassGroup.id);
-         setSelectedStudentId(null);
-       }
+      setSelectedClassGroupId(newClassGroup.id);
+      setSelectedStudentId(null);
     }
   };
   
   const handleUpdateClassGroup = async (id: string, name: string) => {
     if (!supabase) return;
     const { error } = await supabase.from('class_groups').update({ name }).eq('id', id);
-    if (error) console.error("Error updating class group:", error);
+    if (error) console.error("Error updating class group:", error.message);
     else setClassGroups(prev => prev.map(cg => cg.id === id ? { ...cg, name } : cg));
   };
 
   const handleDeleteClassGroup = async (id: string) => {
     if (!supabase) return;
     const { error } = await supabase.from('class_groups').delete().eq('id', id);
-    if (error) console.error("Error deleting class group:", error);
+    if (error) console.error("Error deleting class group:", error.message);
     else {
       const newClassGroups = classGroups.filter(cg => cg.id !== id);
       setClassGroups(newClassGroups);
@@ -173,15 +254,15 @@ const App: React.FC = () => {
     }
   };
 
-  // --- Gestió d'Alumnes ---
   const handleAddStudent = async (name: string) => {
-    if (!selectedClassGroupId || !supabase) return;
+    if (!selectedClassGroupId || !session || !supabase) return;
     
     const studentPayload = {
         name,
         class_group_id: selectedClassGroupId,
         personal_aspects: { notes: '', report: '' },
         general_comment: { notes: '', report: '' },
+        user_id: session.user.id
     };
 
     const { data: newStudentData, error: studentError } = await supabase
@@ -191,7 +272,7 @@ const App: React.FC = () => {
         .single();
     
     if (studentError) {
-        console.error("Error afegint alumne:", studentError);
+        console.error("Error afegint alumne:", studentError.message);
         return;
     }
 
@@ -203,7 +284,6 @@ const App: React.FC = () => {
         subjects: [],
     };
 
-    // Add subjects relations
     const studentSubjectsPayload = subjects.map(s => ({
         student_id: newStudent.id,
         subject_id: s.id,
@@ -217,8 +297,7 @@ const App: React.FC = () => {
             .insert(studentSubjectsPayload);
 
         if (subjectsError) {
-            console.error("Error afegint relacions d'assignatures:", subjectsError);
-            // Optional: delete the student if subject relations fail
+            console.error("Error afegint relacions d'assignatures:", subjectsError.message);
             await supabase.from('students').delete().eq('id', newStudent.id);
             return;
         }
@@ -238,19 +317,18 @@ const App: React.FC = () => {
   };
 
   const handleAddMultipleStudents = async (classGroupId: string, names: string[]) => {
-      // This function now needs to be async and interact with Supabase
-      // For simplicity, we can call handleAddStudent for each name.
-      // A more optimized version would use a bulk insert.
       for (const name of names) {
-          await handleAddStudent(name); // Temporarily select the class to add
+          // Temporarily set the selected class to add student, then revert
+          const originalClassId = selectedClassGroupId;
+          setSelectedClassGroupId(classGroupId);
+          await handleAddStudent(name);
+          setSelectedClassGroupId(originalClassId);
       }
-      // Re-fetch data to ensure consistency
-      fetchData();
+      fetchData(); // Re-fetch for full consistency
   };
 
   const handleUpdateStudent = async (updatedStudent: Student) => {
       if (!supabase) return;
-      // 1. Update student's own fields
       const { error: studentError } = await supabase
           .from('students')
           .update({
@@ -259,9 +337,8 @@ const App: React.FC = () => {
               general_comment: updatedStudent.generalComment,
           })
           .eq('id', updatedStudent.id);
-      if (studentError) console.error("Error updating student:", studentError);
+      if (studentError) console.error("Error updating student:", studentError.message);
 
-      // 2. Update subject relations (upsert)
       const studentSubjectsPayload = updatedStudent.subjects.map(s => ({
           student_id: updatedStudent.id,
           subject_id: s.subjectId,
@@ -272,11 +349,10 @@ const App: React.FC = () => {
       if(studentSubjectsPayload.length > 0) {
         const { error: subjectsError } = await supabase
           .from('student_subjects')
-          .upsert(studentSubjectsPayload);
-        if (subjectsError) console.error("Error upserting student subjects:", subjectsError);
+          .upsert(studentSubjectsPayload, { onConflict: 'student_id, subject_id' });
+        if (subjectsError) console.error("Error upserting student subjects:", subjectsError.message);
       }
       
-      // Update local state for immediate UI feedback
       setClassGroups(prev => prev.map(cg => ({
           ...cg,
           students: cg.students.map(s => s.id === updatedStudent.id ? updatedStudent : s)
@@ -291,7 +367,7 @@ const App: React.FC = () => {
 
     const { error } = await supabase.from('students').delete().eq('id', studentId);
     if(error) {
-        console.error("Error deleting student: ", error);
+        console.error("Error deleting student: ", error.message);
         return;
     }
     
@@ -313,7 +389,6 @@ const App: React.FC = () => {
     }
   };
 
-  // --- Gestió d'Assignatures ---
   const handleAddSubject = async (subjectName: string) => {
     if(!session || !supabase) return;
     const { data, error } = await supabase
@@ -322,11 +397,10 @@ const App: React.FC = () => {
         .select()
         .single();
     if (error) {
-        console.error("Error adding subject:", error);
+        console.error("Error adding subject:", error.message);
     } else {
         const newSubject: Subject = { id: data.id, name: data.name, workedContent: '' };
         setSubjects(prev => [...prev, newSubject]);
-        // Re-fetch all data to add the new subject to all students correctly
         fetchData();
     }
   };
@@ -338,21 +412,20 @@ const App: React.FC = () => {
         .update({ name: updatedSubject.name, worked_content: updatedSubject.workedContent })
         .eq('id', updatedSubject.id);
 
-    if (error) console.error("Error updating subject:", error);
+    if (error) console.error("Error updating subject:", error.message);
     else setSubjects(prev => prev.map(s => s.id === updatedSubject.id ? updatedSubject : s));
   };
 
   const handleDeleteSubject = async (subjectId: string) => {
     if (!supabase) return;
     const { error } = await supabase.from('subjects').delete().eq('id', subjectId);
-    if(error) console.error("Error deleting subject:", error);
+    if(error) console.error("Error deleting subject:", error.message);
     else {
         setSubjects(prev => prev.filter(s => s.id !== subjectId));
-        fetchData(); // Re-fetch to update students
+        fetchData();
     }
   };
 
-  // --- Altres ---
   const handleCopyToClipboard = async () => {
     if (!selectedClassGroup) return;
     setIsExporting(true);
@@ -361,7 +434,6 @@ const App: React.FC = () => {
         const updatedStudents = await generateMissingReportsForClass(selectedClassGroup.students, subjects);
         const updatedClassGroup = { ...selectedClassGroup, students: updatedStudents };
         
-        // This mutation should be saved to the database as well
         for (const student of updatedStudents) {
             await handleUpdateStudent(student);
         }
@@ -390,8 +462,22 @@ const App: React.FC = () => {
 
   const selectedStudent = useMemo(() => currentStudents.find(s => s.id === selectedStudentId), [currentStudents, selectedStudentId]);
 
-  if (loading) {
-    return <div className="h-screen flex items-center justify-center">Carregant...</div>;
+  if (loading || isSeeding) {
+    return (
+        <div className="h-screen flex items-center justify-center bg-slate-100">
+            <div className="text-center p-10 space-y-4">
+                <div className="flex justify-center">
+                    <svg className="animate-spin h-10 w-10 text-sky-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+                <p className="text-lg font-semibold text-slate-700">
+                    {isSeeding ? 'Configurant el teu espai per primer cop...' : 'Carregant dades...'}
+                </p>
+            </div>
+        </div>
+    );
   }
   
   if (!session) {
@@ -444,7 +530,7 @@ const App: React.FC = () => {
             <h2 className="text-xl font-semibold">Selecciona una classe per començar.</h2>
           </div>
         )}
-        {!selectedClassGroup && classGroups.length === 0 && (
+        {classGroups.length === 0 && !loading && (
             <div className="text-center p-10 bg-white rounded-lg shadow">
                 <h2 className="text-xl font-semibold mb-4">Benvingut/da!</h2>
                 <p className="text-slate-600 mb-6">Sembla que encara no tens cap classe. Comença afegint-ne una.</p>
