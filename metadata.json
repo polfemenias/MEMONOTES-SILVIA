@@ -1,0 +1,7 @@
+{
+  "name": "Assistent de Dictats per a Mestres",
+  "description": "Una aplicació per ajudar els mestres de primària a dictar i organitzar els comentaris dels alumnes per a la plataforma Esfera, amb generació de comentaris assistida per IA.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
