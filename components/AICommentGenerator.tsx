@@ -81,14 +81,19 @@ const AICommentGenerator: React.FC<AICommentGeneratorProps> = ({ label, notes, r
       {(isLoading || report) && (
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-2">Proposta d'informe per a les famílies</label>
-          <textarea
-            ref={reportTextAreaRef}
-            value={report}
-            onChange={(e) => onReportChange(e.target.value)}
-            rows={5}
-            className="w-full p-3 border rounded-md bg-slate-50 shadow-sm focus:ring-sky-500 focus:border-sky-500 transition resize-none overflow-hidden"
-            placeholder="Aquí apareixerà l'informe generat..."
-          />
+          <div className="relative">
+            <textarea
+              ref={reportTextAreaRef}
+              value={report}
+              onChange={(e) => onReportChange(e.target.value)}
+              rows={5}
+              className="w-full p-3 pr-12 border rounded-md bg-slate-50 shadow-sm focus:ring-sky-500 focus:border-sky-500 transition resize-none overflow-hidden"
+              placeholder="Aquí apareixerà l'informe generat..."
+            />
+            <div className="absolute top-2 right-2">
+                <SpeechToTextButton onTranscript={(transcript) => onReportChange(report ? `${report}\n${transcript}`: transcript)} />
+            </div>
+          </div>
            <p className="text-xs text-slate-500 mt-1">Pots editar manualment aquest text abans d'exportar-lo.</p>
         </div>
       )}

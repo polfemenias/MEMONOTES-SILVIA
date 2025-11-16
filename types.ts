@@ -10,6 +10,11 @@ export interface AITextField {
   report: string;
 }
 
+export interface CourseSubject {
+  subjectId: string;
+  workedContent: string;
+}
+
 export interface StudentSubject {
   subjectId: string;
   grade: Grade;
@@ -24,14 +29,21 @@ export interface Student {
   subjects: StudentSubject[];
 }
 
+// Llista mestra d'assignatures
 export interface Subject {
   id: string;
   name: string;
-  workedContent: string;
 }
 
 export interface ClassGroup {
   id: string;
   name: string;
+  courseId: string;
   students: Student[];
+}
+
+export interface Course {
+    id: string;
+    name: string;
+    subjects: CourseSubject[];
 }

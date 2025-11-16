@@ -1,23 +1,24 @@
-
 import { GoogleGenAI } from "@google/genai";
-import type { Grade, Student, Subject, StudentSubject } from "../types";
+import type { Grade, Student } from "../types";
 
-// --- CONFIGURACIÓ OBLIGATÒRIA ---
-// Reemplaça aquest valor amb la teva clau d'API de Google AI Studio.
-// Pots aconseguir-ne una gratuïtament a https://aistudio.google.com/app/apikey
-const geminiApiKey = 'REPLACE_WITH_YOUR_GEMINI_API_KEY';
-// ---------------------------------
+// L'API Key de Gemini s'obté de les variables d'entorn.
+// Això és més segur i necessari per a desplegaments a serveis com Netlify.
+// L'usuari ha de configurar una variable d'entorn anomenada API_KEY.
+const apiKey = process.env.API_KEY;
 
-const isConfigured = !geminiApiKey.startsWith('REPLACE_');
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
-const ai = isConfigured ? new GoogleGenAI({ apiKey: geminiApiKey }) : null;
+if (!ai) {
+  console.error("La clau de l'API de Gemini no està configurada a les variables d'entorn (API_KEY). Les funcions d'IA no funcionaran.");
+}
 
-if (!isConfigured) {
-  console.error("La clau de l'API de Gemini no està configurada al fitxer services/geminiService.ts. Les funcions d'IA no funcionaran.");
+interface ResolvedSubject {
+  id: string;
+  name: string;
 }
 
 export type GenerationContext = 
-  | { type: 'personal', student: Student, subjects: Subject[] }
+  | { type: 'personal', student: Student, subjects: ResolvedSubject[] }
   | { type: 'general' }
   | { type: 'subject', grade: Grade, subjectName: string, workedContent: string };
 
@@ -27,7 +28,7 @@ export const generateReportComment = async (
   context: GenerationContext
 ): Promise<string> => {
   if (!ai) {
-    throw new Error("La clau de l'API de Gemini no està configurada. No es pot generar l'informe.");
+    throw new Error("La clau de l'API de Gemini no està configurada. Assegura't de configurar la variable d'entorn API_KEY. No es pot generar l'informe.");
   }
 
   let prompt = '';
@@ -110,32 +111,35 @@ export const generateReportComment = async (
     return response.text.trim();
   } catch (error) {
     console.error("Error calling Gemini API:", error);
-    throw new Error("Failed to generate comment from AI.");
+    throw new Error("Ha fallat la generació del comentari. Verifica que la clau de l'API de Gemini sigui correcta.");
   }
 };
 
-// Nova funció per generar informes que falten per a tota una classe
-export const generateMissingReportsForClass = async (students: Student[], subjects: Subject[]): Promise<Student[]> => {
+interface ResolvedClassSubject {
+    id: string;
+    name: string;
+    workedContent: string;
+}
+
+export const generateMissingReportsForClass = async (students: Student[], classSubjects: ResolvedClassSubject[]): Promise<Student[]> => {
     if (!ai) {
-      console.warn("La generació massiva d'informes s'ha omès perquè la clau de l'API de Gemini no està configurada.");
-      return Promise.reject(new Error("La generació automàtica no està disponible. Configura la clau de l'API de Gemini a 'services/geminiService.ts'."));
+      const errorMessage = "La generació automàtica no està disponible. Configura la clau de l'API de Gemini a les variables d'entorn (API_KEY) del teu projecte.";
+      console.warn(errorMessage);
+      return Promise.reject(new Error(errorMessage));
     }
     
-    // Clona profundament els estudiants per evitar mutacions directes de l'estat
     const studentsCopy = JSON.parse(JSON.stringify(students)) as Student[];
 
     const generationPromises: Promise<void>[] = [];
 
     studentsCopy.forEach(student => {
-        // 1. Comprova Aspectes Personals
         if (!student.personalAspects.report && student.personalAspects.notes) {
-            const context: GenerationContext = { type: 'personal', student, subjects };
+            const context: GenerationContext = { type: 'personal', student, subjects: classSubjects };
             const promise = generateReportComment(student.personalAspects.notes, context)
                 .then(report => { student.personalAspects.report = report; });
             generationPromises.push(promise);
         }
 
-        // 2. Comprova Comentari General
         if (!student.generalComment.report && student.generalComment.notes) {
             const context: GenerationContext = { type: 'general' };
             const promise = generateReportComment(student.generalComment.notes, context)
@@ -143,10 +147,9 @@ export const generateMissingReportsForClass = async (students: Student[], subjec
             generationPromises.push(promise);
         }
 
-        // 3. Comprova cada Assignatura
         student.subjects.forEach(ss => {
             if (!ss.comment.report && ss.comment.notes) {
-                const subjectInfo = subjects.find(s => s.id === ss.subjectId);
+                const subjectInfo = classSubjects.find(s => s.id === ss.subjectId);
                 if (subjectInfo) {
                     const context: GenerationContext = {
                         type: 'subject',
@@ -167,7 +170,6 @@ export const generateMissingReportsForClass = async (students: Student[], subjec
         });
     });
 
-    // Espera que totes les generacions d'informes s'acabin
     await Promise.all(generationPromises);
 
     return studentsCopy;

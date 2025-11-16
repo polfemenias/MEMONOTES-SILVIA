@@ -1,6 +1,12 @@
-import type { Student, Subject } from '../types';
+import type { Student } from '../types';
 
-export const generateTextForExport = (className: string, students: Student[], subjects: Subject[]): string => {
+interface ResolvedClassSubject {
+    id: string;
+    name: string;
+    workedContent: string;
+}
+
+export const generateTextForExport = (className: string, students: Student[], classSubjects: ResolvedClassSubject[]): string => {
   let fullText = `INFORMES: ${className.toUpperCase()}\n\n`;
   
   students.forEach((student, index) => {
@@ -18,7 +24,7 @@ export const generateTextForExport = (className: string, students: Student[], su
     fullText += `VALORACIÓ DE LES ASSIGNATURES\n`;
     fullText += '-'.repeat(30) + '\n';
 
-    subjects.forEach(subject => {
+    classSubjects.forEach(subject => {
       const studentSubjectData = student.subjects.find(s => s.subjectId === subject.id);
       if (studentSubjectData) {
         fullText += `\n### ${subject.name.toUpperCase()} ###\n\n`;
@@ -36,7 +42,7 @@ export const generateTextForExport = (className: string, students: Student[], su
   return fullText;
 };
 
-export const generateHtmlForExport = (className: string, students: Student[], subjects: Subject[]): string => {
+export const generateHtmlForExport = (className: string, students: Student[], classSubjects: ResolvedClassSubject[]): string => {
   let fullHtml = `<h2>Informes: ${className}</h2>`;
 
   // Helper to sanitize text and convert newlines to <br> tags
@@ -62,7 +68,7 @@ export const generateHtmlForExport = (className: string, students: Student[], su
     fullHtml += `<p>${formatText(personalAspects)}</p>`;
 
     fullHtml += `<br /><p><strong>Valoració de les Assignatures</strong></p>`;
-    subjects.forEach(subject => {
+    classSubjects.forEach(subject => {
       const studentSubjectData = student.subjects.find(s => s.subjectId === subject.id);
       if (studentSubjectData) {
         fullHtml += `<br /><p><strong>${subject.name}</strong></p>`;

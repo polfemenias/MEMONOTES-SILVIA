@@ -1,36 +1,33 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import type { Student, Subject, StudentSubject, AITextField } from '../types';
+import React, { useState, useCallback, useEffect } from 'react';
+import type { Student, StudentSubject, AITextField } from '../types';
 import { Grade } from '../types';
 import { GRADE_OPTIONS } from '../constants';
 import AICommentGenerator from './AICommentGenerator';
-import { useAutoResizeTextArea } from '../hooks/useAutoResizeTextArea';
+
+interface ResolvedSubject {
+  id: string;
+  name: string;
+  workedContent: string;
+}
 
 interface StudentDetailProps {
   student: Student;
-  subjects: Subject[];
+  classSubjects: ResolvedSubject[];
   onUpdateStudent: (student: Student) => void;
-  onUpdateSubject: (subject: Subject) => void;
-  onAddSubject: (subjectName: string) => void;
 }
 
-const StudentDetail: React.FC<StudentDetailProps> = ({ student, subjects, onUpdateStudent, onUpdateSubject, onAddSubject }) => {
+const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, onUpdateStudent }) => {
   const [activeTab, setActiveTab] = useState('personal');
-  const [isAddingSubject, setIsAddingSubject] = useState(false);
-  const [newSubjectName, setNewSubjectName] = useState('');
   
-  const workedContentRef = useRef<HTMLTextAreaElement>(null);
-  const currentSubject = subjects.find(s => s.id === activeTab);
-  useAutoResizeTextArea(workedContentRef, currentSubject?.workedContent ?? '');
-
-
   useEffect(() => {
+    // Si l'assignatura activa ja no pertany a la classe, torna a la pestanya personal
     if (activeTab !== 'personal' && activeTab !== 'general') {
-      const subjectExists = subjects.some(s => s.id === activeTab);
+      const subjectExists = classSubjects.some(s => s.id === activeTab);
       if (!subjectExists) {
         setActiveTab('personal');
       }
     }
-  }, [subjects, activeTab]);
+  }, [classSubjects, activeTab]);
 
   const handleUpdateStudentField = useCallback((field: 'personalAspects' | 'generalComment', value: AITextField) => {
     onUpdateStudent({ ...student, [field]: value });
@@ -42,23 +39,6 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, subjects, onUpda
     );
     onUpdateStudent({ ...student, subjects: updatedSubjects });
   }, [student, onUpdateStudent]);
-
-  const handleConfirmAddSubject = () => {
-    if (newSubjectName.trim()) {
-      onAddSubject(newSubjectName.trim());
-      setNewSubjectName('');
-      setIsAddingSubject(false);
-    }
-  };
-
-  const handleAddSubjectKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleConfirmAddSubject();
-    } else if (e.key === 'Escape') {
-      setIsAddingSubject(false);
-      setNewSubjectName('');
-    }
-  };
   
   const renderTabContent = () => {
     if (activeTab === 'personal') {
@@ -69,7 +49,7 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, subjects, onUpda
           report={student.personalAspects.report}
           onNotesChange={(newNotes) => handleUpdateStudentField('personalAspects', { ...student.personalAspects, notes: newNotes })}
           onReportChange={(newReport) => handleUpdateStudentField('personalAspects', { ...student.personalAspects, report: newReport })}
-          generationContext={{ type: 'personal', student, subjects }}
+          generationContext={{ type: 'personal', student, subjects: classSubjects }}
         />
       );
     }
@@ -87,21 +67,17 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, subjects, onUpda
     }
 
     const studentSubject = student.subjects.find(s => s.subjectId === activeTab);
-    const subject = subjects.find(s => s.id === activeTab);
+    const subject = classSubjects.find(s => s.id === activeTab);
     if (!studentSubject || !subject) return null;
 
     return (
       <div className="space-y-6">
         <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Continguts Treballats (per a tots els alumnes)</label>
-            <textarea
-                ref={workedContentRef}
-                value={subject.workedContent}
-                onChange={(e) => onUpdateSubject({ ...subject, workedContent: e.target.value })}
-                rows={3}
-                className="w-full p-3 border rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 transition resize-none overflow-hidden"
-                placeholder="Introdueix els continguts treballats en aquesta assignatura..."
-            />
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Continguts Treballats (compartits per al curs)</label>
+            <div className="w-full p-3 border rounded-md bg-slate-50 min-h-[4rem] text-sm text-slate-800">
+               {subject.workedContent || <span className="text-slate-400">No s'han definit continguts per a aquesta assignatura. Pots afegir-los a la pàgina de Configuració.</span>}
+            </div>
+             <p className="text-xs text-slate-500 mt-1">Aquests continguts s'editen a la pàgina de Configuració i són els mateixos per a totes les classes del mateix curs.</p>
         </div>
 
         <div className="bg-slate-50 p-4 rounded-lg">
@@ -155,24 +131,7 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, subjects, onUpda
       </div>
       <div className="border-b border-slate-200 flex flex-wrap items-center">
         <TabButton id="personal" label="Aspectes Personals" />
-        {subjects.map(s => <TabButton key={s.id} id={s.id} label={s.name} />)}
-        {isAddingSubject ? (
-          <div className="p-2 flex items-center gap-2">
-            <input 
-              type="text" 
-              value={newSubjectName}
-              onChange={e => setNewSubjectName(e.target.value)}
-              onKeyDown={handleAddSubjectKeyDown}
-              className="p-1 border rounded-md text-sm"
-              placeholder="Nova assignatura"
-              autoFocus
-            />
-            <button onClick={handleConfirmAddSubject} className="text-green-600 hover:text-green-800 text-xl font-bold">&#x2713;</button>
-            <button onClick={() => { setIsAddingSubject(false); setNewSubjectName(''); }} className="text-red-600 hover:text-red-800 text-xl font-bold">&times;</button>
-          </div>
-        ) : (
-          <button onClick={() => setIsAddingSubject(true)} className="px-3 py-2 text-sky-600 hover:bg-sky-50 rounded-md text-sm">+</button>
-        )}
+        {classSubjects.map(s => <TabButton key={s.id} id={s.id} label={s.name} />)}
         <div className="flex-grow"></div>
         <TabButton id="general" label="Comentari General" />
       </div>
