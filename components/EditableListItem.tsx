@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import SpeechToTextButton from './SpeechToTextButton';
 
 interface EditableListItemProps {
   item?: { id: string; name: string };
@@ -13,10 +14,8 @@ const EditableListItem: React.FC<EditableListItemProps> = ({ item, isAdding = fa
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(item?.name || '');
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-  // FIX: Use `number` for the return type of `setTimeout` in a browser environment instead of `NodeJS.Timeout`.
   const confirmTimeoutRef = useRef<number | null>(null);
 
-  // Neteja el temporitzador si el component es desmunta
   useEffect(() => {
     return () => {
       if (confirmTimeoutRef.current) {
@@ -50,7 +49,6 @@ const EditableListItem: React.FC<EditableListItemProps> = ({ item, isAdding = fa
 
   const handleInitiateDelete = () => {
     setIsConfirmingDelete(true);
-    // Cancel·la automàticament després de 3 segons
     confirmTimeoutRef.current = window.setTimeout(() => {
       setIsConfirmingDelete(false);
     }, 3000);
@@ -76,15 +74,19 @@ const EditableListItem: React.FC<EditableListItemProps> = ({ item, isAdding = fa
   if (isAdding) {
     return (
       <div className="flex items-center gap-2">
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={`${addLabel}...`}
-          className="w-full p-2 border rounded-md"
-          autoFocus
-        />
+        <div className="relative w-full">
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={`${addLabel}...`}
+              className="w-full p-2 pr-12 border rounded-md"
+            />
+            <div className="absolute top-1/2 right-2 -translate-y-1/2">
+                <SpeechToTextButton onTranscript={setName} />
+            </div>
+        </div>
         <button onClick={handleAdd} className="bg-sky-600 text-white px-4 py-2 rounded-md hover:bg-sky-700">Afegir</button>
       </div>
     );
@@ -95,15 +97,20 @@ const EditableListItem: React.FC<EditableListItemProps> = ({ item, isAdding = fa
   return (
     <div className="flex items-center gap-2 w-full">
       {isEditing ? (
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onBlur={handleUpdate}
-          className="w-full p-2 border rounded-md"
-          autoFocus
-        />
+        <div className="relative w-full">
+             <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={handleUpdate}
+              className="w-full p-2 pr-12 border rounded-md"
+              autoFocus
+            />
+            <div className="absolute top-1/2 right-2 -translate-y-1/2">
+                <SpeechToTextButton onTranscript={setName} />
+            </div>
+        </div>
       ) : (
         <span className="flex-grow font-medium">{item.name}</span>
       )}

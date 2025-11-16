@@ -5,7 +5,7 @@ import StudentList from './components/StudentList';
 import StudentDetail from './components/StudentDetail';
 import ClassTabs from './components/ClassTabs';
 import SettingsPage from './components/SettingsPage';
-import { generateTextForExport, generateHtmlForExport } from './services/exportService';
+import { generateHtmlForExport } from './services/exportService';
 import { generateMissingReportsForClass } from './services/geminiService';
 import { getInitialData } from './data/initialData';
 import { supabase } from './supabaseClient';
@@ -277,17 +277,15 @@ const App: React.FC = () => {
     }
   };
 
-  const handleExport = (format: 'txt' | 'html') => {
+  const handleExport = () => {
     if (!selectedClassGroup || currentStudents.length === 0) return;
     try {
-        const content = format === 'txt'
-            ? generateTextForExport(selectedClassGroup.name, currentStudents, resolvedSubjectsForSelectedClass)
-            : generateHtmlForExport(selectedClassGroup.name, currentStudents, resolvedSubjectsForSelectedClass);
+        const content = generateHtmlForExport(selectedClassGroup.name, currentStudents, resolvedSubjectsForSelectedClass);
         
         navigator.clipboard.writeText(content).then(() => {
-            const message = format === 'txt' ? 'Text per a Esfera copiat!' : 'HTML per a Google Docs copiat!';
+            const message = 'Contingut copiat! Enganxa-ho a un Google Docs.';
             setCopySuccess(message);
-            setTimeout(() => setCopySuccess(''), 2000);
+            setTimeout(() => setCopySuccess(''), 3000);
         });
     } catch (error) {
         alert('Hi ha hagut un error en generar l\'exportació.');
@@ -368,8 +366,10 @@ const App: React.FC = () => {
                   <button onClick={handleGenerateAllReports} disabled={isGeneratingAll} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-indigo-300">
                     {isGeneratingAll ? 'Generant...' : 'Generar Tots els Informes Pendents'}
                   </button>
-                  <button onClick={() => handleExport('txt')} className="w-full px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors">Copiar Text per a Esfera</button>
-                  <button onClick={() => handleExport('html')} className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Copiar per a Google Docs</button>
+                  <button onClick={handleExport} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                     Exportar
+                  </button>
                   {copySuccess && <div className="text-center text-sm font-semibold text-green-600 bg-green-100 p-2 rounded-md">{copySuccess}</div>}
               </div>
             </div>
