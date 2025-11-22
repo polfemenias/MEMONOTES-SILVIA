@@ -1,15 +1,46 @@
 import { GoogleGenAI } from "@google/genai";
 import type { Grade, Student } from "../types";
 
-// L'API Key de Gemini s'obté de les variables d'entorn.
-// Això és més segur i necessari per a desplegaments a serveis com Netlify.
-// L'usuari ha de configurar una variable d'entorn anomenada API_KEY.
-const apiKey = process.env.API_KEY;
+// Funció robusta per obtenir l'API Key independentment de l'entorn (Vite, CRA, Webpack, Netlify)
+const getApiKey = (): string | undefined => {
+  let key: string | undefined = undefined;
+
+  // 1. Intentar obtenir des de import.meta.env (Estàndard Vite)
+  try {
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+        // @ts-ignore
+        key = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY;
+    }
+  } catch (e) {
+    // Ignorar error si import.meta no existeix
+  }
+
+  // 2. Si no s'ha trobat, intentar obtenir des de process.env (Estàndard Node/Webpack/CRA)
+  if (!key) {
+    try {
+      if (typeof process !== 'undefined' && process.env) {
+        key = process.env.API_KEY || process.env.REACT_APP_API_KEY || process.env.VITE_API_KEY;
+      }
+    } catch (e) {
+       // Ignorar error si process no està definit
+    }
+  }
+
+  return key;
+};
+
+const apiKey = getApiKey();
 
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
+// Log d'advertència només en desenvolupament o consola per depurar
 if (!ai) {
-  console.error("La clau de l'API de Gemini no està configurada a les variables d'entorn (API_KEY). Les funcions d'IA no funcionaran.");
+  console.warn(
+    "⚠️ ATENCIÓ: No s'ha trobat cap API KEY.\n" +
+    "Si estàs a Netlify, assegura't d'haver afegit la variable d'entorn 'VITE_API_KEY' (o 'API_KEY') a Site Settings > Environment Variables.\n" +
+    "Després d'afegir-la, has de fer un REDEPLOY."
+  );
 }
 
 interface ResolvedSubject {
@@ -28,7 +59,13 @@ export const generateReportComment = async (
   context: GenerationContext
 ): Promise<string> => {
   if (!ai) {
-    throw new Error("La clau de l'API de Gemini no està configurada. Assegura't de configurar la variable d'entorn API_KEY. No es pot generar l'informe.");
+    throw new Error(
+        "Error de Configuració: No s'ha trobat l'API Key.\n\n" +
+        "SOLUCIÓ A NETLIFY:\n" +
+        "1. Ves a 'Site settings' > 'Environment variables'.\n" +
+        "2. Afegeix una nova variable anomenada 'VITE_API_KEY' amb la teva clau.\n" +
+        "3. Ves a 'Deploys' i fes clic a 'Trigger deploy' per aplicar els canvis."
+    );
   }
 
   let prompt = '';
@@ -109,9 +146,21 @@ export const generateReportComment = async (
       contents: prompt,
     });
     return response.text.trim();
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error calling Gemini API:", error);
-    throw new Error("Ha fallat la generació del comentari. Verifica que la clau de l'API de Gemini sigui correcta.");
+    
+    // Gestió d'errors comuns per donar feedback útil a l'usuari
+    const errorMessage = error.message || error.toString();
+    
+    if (errorMessage.includes('429')) {
+        throw new Error("Has superat el límit de peticions (Quota Exceeded). Si uses la versió gratuïta, espera uns minuts. Si és per feina, revisa la facturació a Google Cloud.");
+    }
+    
+    if (errorMessage.includes('API key not valid') || errorMessage.includes('403')) {
+        throw new Error("La clau API no és vàlida o ha caducat. Revisa la configuració a Google AI Studio.");
+    }
+
+    throw new Error(`Error API: ${errorMessage}`);
   }
 };
 
@@ -123,7 +172,7 @@ interface ResolvedClassSubject {
 
 export const generateMissingReportsForClass = async (students: Student[], classSubjects: ResolvedClassSubject[]): Promise<Student[]> => {
     if (!ai) {
-      const errorMessage = "La generació automàtica no està disponible. Configura la clau de l'API de Gemini a les variables d'entorn (API_KEY) del teu projecte.";
+      const errorMessage = "La generació automàtica no està disponible. Revisa la consola per veure les instruccions de configuració de l'API Key a Netlify.";
       console.warn(errorMessage);
       return Promise.reject(new Error(errorMessage));
     }
