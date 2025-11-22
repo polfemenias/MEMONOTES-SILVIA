@@ -20,7 +20,6 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
   const [activeTab, setActiveTab] = useState('personal');
   
   useEffect(() => {
-    // Si l'assignatura activa ja no pertany a la classe, torna a la pestanya personal
     if (activeTab !== 'personal' && activeTab !== 'general') {
       const subjectExists = classSubjects.some(s => s.id === activeTab);
       if (!subjectExists) {
@@ -43,26 +42,30 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
   const renderTabContent = () => {
     if (activeTab === 'personal') {
       return (
-        <AICommentGenerator
-          label="Aspectes Personals i Evolutius"
-          notes={student.personalAspects.notes}
-          report={student.personalAspects.report}
-          onNotesChange={(newNotes) => handleUpdateStudentField('personalAspects', { ...student.personalAspects, notes: newNotes })}
-          onReportChange={(newReport) => handleUpdateStudentField('personalAspects', { ...student.personalAspects, report: newReport })}
-          generationContext={{ type: 'personal', student, subjects: classSubjects }}
-        />
+        <div className="animate-fadeIn">
+            <AICommentGenerator
+            label="Aspectes Personals i Evolutius"
+            notes={student.personalAspects.notes}
+            report={student.personalAspects.report}
+            onNotesChange={(newNotes) => handleUpdateStudentField('personalAspects', { ...student.personalAspects, notes: newNotes })}
+            onReportChange={(newReport) => handleUpdateStudentField('personalAspects', { ...student.personalAspects, report: newReport })}
+            generationContext={{ type: 'personal', student, subjects: classSubjects }}
+            />
+        </div>
       );
     }
     if (activeTab === 'general') {
       return (
-        <AICommentGenerator
-          label="Comentari General Final"
-          notes={student.generalComment.notes}
-          report={student.generalComment.report}
-          onNotesChange={(newNotes) => handleUpdateStudentField('generalComment', { ...student.generalComment, notes: newNotes })}
-          onReportChange={(newReport) => handleUpdateStudentField('generalComment', { ...student.generalComment, report: newReport })}
-          generationContext={{ type: 'general' }}
-        />
+         <div className="animate-fadeIn">
+            <AICommentGenerator
+            label="Comentari General Final"
+            notes={student.generalComment.notes}
+            report={student.generalComment.report}
+            onNotesChange={(newNotes) => handleUpdateStudentField('generalComment', { ...student.generalComment, notes: newNotes })}
+            onReportChange={(newReport) => handleUpdateStudentField('generalComment', { ...student.generalComment, report: newReport })}
+            generationContext={{ type: 'general' }}
+            />
+         </div>
       );
     }
 
@@ -71,28 +74,33 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
     if (!studentSubject || !subject) return null;
 
     return (
-      <div className="space-y-6">
-        <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Continguts Treballats (compartits per al curs)</label>
-            <div className="w-full p-3 border rounded-md bg-slate-50 min-h-[4rem] text-sm text-slate-800">
-               {subject.workedContent || <span className="text-slate-400">No s'han definit continguts per a aquesta assignatura. Pots afegir-los a la pàgina de Configuració.</span>}
+      <div className="space-y-8 animate-fadeIn">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Continguts Treballats (Curs)</label>
+                <div className="w-full p-4 rounded-2xl bg-slate-50 text-sm text-slate-600 leading-relaxed border border-slate-100">
+                {subject.workedContent || <span className="text-slate-400 italic">No s'han definit continguts.</span>}
+                </div>
             </div>
-             <p className="text-xs text-slate-500 mt-1">Aquests continguts s'editen a la pàgina de Configuració i són els mateixos per a totes les classes del mateix curs.</p>
+            <div>
+                <label htmlFor={`grade-${subject.id}`} className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Nota</label>
+                <div className="relative">
+                    <select
+                        id={`grade-${subject.id}`}
+                        value={studentSubject.grade}
+                        onChange={(e) => handleUpdateStudentSubject(subject.id, { grade: e.target.value as Grade })}
+                        className="w-full p-4 border-none rounded-2xl bg-indigo-50 text-indigo-900 font-semibold appearance-none focus:ring-2 focus:ring-indigo-200 cursor-pointer"
+                    >
+                        {GRADE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-indigo-600">
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div className="bg-slate-50 p-4 rounded-lg">
-           <h3 className="font-semibold mb-2">Valoració de l'assignatura per a {student.name}</h3>
-           <div className="mb-4">
-              <label htmlFor={`grade-${subject.id}`} className="block text-sm font-medium text-slate-700 mb-1">Nota</label>
-              <select
-                id={`grade-${subject.id}`}
-                value={studentSubject.grade}
-                onChange={(e) => handleUpdateStudentSubject(subject.id, { grade: e.target.value as Grade })}
-                className="w-full p-2 border rounded-md"
-              >
-                {GRADE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-              </select>
-          </div>
+        <div className="bg-white border-t border-slate-100 pt-6">
           <AICommentGenerator
             label="Comentari Específic"
             notes={studentSubject.comment.notes}
@@ -111,13 +119,13 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
     );
   };
 
-  const TabButton: React.FC<{ id: string; label: string }> = ({ id, label }) => (
+  const TabButton: React.FC<{ id: string; label: string; isActive: boolean; onClick: () => void }> = ({ id, label, isActive, onClick }) => (
     <button
-      onClick={() => setActiveTab(id)}
-      className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
-        activeTab === id
-          ? 'border-sky-600 text-sky-700 bg-white'
-          : 'border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+      onClick={onClick}
+      className={`px-5 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap ${
+        isActive
+          ? 'bg-slate-900 text-white shadow-lg shadow-slate-200'
+          : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
       }`}
     >
       {label}
@@ -125,17 +133,33 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
   );
 
   return (
-    <div className="bg-white rounded-lg shadow">
-      <div className="p-4 border-b">
-        <h2 className="text-2xl font-bold">{student.name}</h2>
+    <div className="flex flex-col h-full">
+      {/* Header Section */}
+      <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white/50 backdrop-blur-sm sticky top-0 z-10">
+        <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md">
+                {student.name.charAt(0)}
+            </div>
+            <div>
+                <h2 className="text-2xl font-bold text-slate-800">{student.name}</h2>
+                <p className="text-xs text-slate-400">Informe Trimestral</p>
+            </div>
+        </div>
       </div>
-      <div className="border-b border-slate-200 flex flex-wrap items-center">
-        <TabButton id="personal" label="Aspectes Personals" />
-        {classSubjects.map(s => <TabButton key={s.id} id={s.id} label={s.name} />)}
-        <div className="flex-grow"></div>
-        <TabButton id="general" label="Comentari General" />
+
+      {/* Tabs Scroll Area */}
+      <div className="px-8 py-4 border-b border-slate-50 overflow-x-auto no-scrollbar">
+        <div className="flex gap-2 min-w-max">
+            <TabButton id="personal" label="Personal" isActive={activeTab === 'personal'} onClick={() => setActiveTab('personal')} />
+            {classSubjects.map(s => (
+                <TabButton key={s.id} id={s.id} label={s.name} isActive={activeTab === s.id} onClick={() => setActiveTab(s.id)} />
+            ))}
+            <TabButton id="general" label="General" isActive={activeTab === 'general'} onClick={() => setActiveTab('general')} />
+        </div>
       </div>
-      <div className="p-6">
+
+      {/* Content Area */}
+      <div className="p-8 flex-1 overflow-y-auto bg-white relative">
         {renderTabContent()}
       </div>
     </div>

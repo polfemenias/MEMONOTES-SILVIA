@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { Student } from '../types';
 import SpeechToTextButton from './SpeechToTextButton';
@@ -40,56 +39,66 @@ const StudentList: React.FC<StudentListProps> = ({ students, onAddStudent, onSel
   };
   
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex justify-between items-center mb-4 border-b pb-2">
-        <h2 className="text-lg font-bold">Alumnat</h2>
+    <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 p-6 flex-1 flex flex-col min-h-0">
+      <div className="flex justify-between items-center mb-6 px-2">
+        <div>
+            <h2 className="text-xl font-bold text-slate-800">Alumnat</h2>
+            <p className="text-xs text-slate-400 mt-1">Llistat de classe</p>
+        </div>
+        <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-sm">
+            {students.length}
+        </div>
       </div>
-      <ul className="space-y-2">
-        {students.map(student => (
+      
+      <ul className="space-y-3 overflow-y-auto flex-1 pr-2 no-scrollbar">
+        {students.map(student => {
+          const isSelected = selectedStudentId === student.id;
+          return (
           <li key={student.id}>
             <button
               onClick={() => onSelectStudent(student.id)}
-              className={`w-full text-left px-4 py-2 rounded-md transition-colors ${
-                selectedStudentId === student.id 
-                ? 'bg-sky-600 text-white font-semibold' 
-                : 'bg-slate-100 hover:bg-sky-100'
+              className={`w-full text-left px-5 py-4 rounded-3xl transition-all duration-200 flex items-center justify-between group ${
+                isSelected 
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' 
+                : 'bg-slate-50 hover:bg-indigo-50 text-slate-700'
               }`}
             >
-              {student.name}
+              <span className={`font-medium ${isSelected ? 'text-white' : 'group-hover:text-indigo-700'}`}>{student.name}</span>
+              {isSelected && (
+                  <div className="w-2 h-2 bg-white rounded-full"></div>
+              )}
             </button>
           </li>
-        ))}
+        )})}
       </ul>
-      {isAdding && (
-        <div className="mt-4 p-3 bg-slate-50 rounded-lg">
-          <div className="flex items-center gap-2">
+      
+      {isAdding ? (
+        <div className="mt-4 p-4 bg-slate-50 rounded-3xl border border-indigo-100">
+          <div className="flex items-center gap-2 mb-3">
              <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Nom de l'alumne/a..."
-              className="w-full p-2 border rounded-md"
+              placeholder="Nom..."
+              className="w-full p-2 bg-white border-none rounded-xl focus:ring-2 focus:ring-indigo-200 outline-none text-sm"
               autoFocus
             />
             <SpeechToTextButton onTranscript={setNewName} />
           </div>
-          <div className="flex justify-end gap-2 mt-2">
-            <button onClick={handleCancelAdd} className="text-sm text-slate-600 hover:text-slate-900">Cancel·lar</button>
-            <button onClick={handleConfirmAdd} className="text-sm bg-sky-600 text-white px-3 py-1 rounded-md hover:bg-sky-700">Afegir</button>
+          <div className="flex justify-end gap-2">
+            <button onClick={handleCancelAdd} className="text-xs font-medium text-slate-500 px-3 py-1 hover:text-slate-700">Cancel</button>
+            <button onClick={handleConfirmAdd} className="text-xs font-medium bg-indigo-600 text-white px-4 py-1.5 rounded-full hover:bg-indigo-700">Afegir</button>
           </div>
         </div>
+      ) : (
+        <button
+            onClick={handleAddClick}
+            className="w-full mt-4 py-3 bg-slate-900 text-white rounded-full hover:bg-slate-800 transition-colors text-sm font-medium flex items-center justify-center gap-2 shadow-lg shadow-slate-200"
+        >
+            <span>+ Afegir Alumne</span>
+        </button>
       )}
-      <button
-        onClick={handleAddClick}
-        className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-        </svg>
-        Afegir Alumne/a
-      </button>
-
     </div>
   );
 };

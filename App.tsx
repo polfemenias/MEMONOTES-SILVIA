@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Student, Subject, ClassGroup, Course, CourseSubject } from './types';
+import type { Student, Subject, ClassGroup, Course } from './types';
 import { Grade } from './types';
 import StudentList from './components/StudentList';
 import StudentDetail from './components/StudentDetail';
@@ -8,9 +8,6 @@ import SettingsPage from './components/SettingsPage';
 import { generateHtmlForExport } from './services/exportService';
 import { generateMissingReportsForClass } from './services/geminiService';
 import { getInitialData } from './data/initialData';
-import { supabase } from './supabaseClient';
-import AuthComponent from './components/Auth';
-import type { Session } from '@supabase/supabase-js';
 
 const LOCAL_STORAGE_KEY = 'assistentDictatsData';
 
@@ -22,9 +19,6 @@ interface ResolvedSubject {
 }
 
 const App: React.FC = () => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loadingSession, setLoadingSession] = useState(true);
-
   // Carrega les dades des de localStorage o utilitza les dades inicials
   const loadDataFromLocalStorage = (): { courses: Course[], classGroups: ClassGroup[], subjects: Subject[] } => {
     try {
@@ -54,24 +48,6 @@ const App: React.FC = () => {
       console.error('Error desant a localStorage', error);
     }
   }, [data]);
-
-  // Gestió de la sessió d'usuari amb Supabase
-  useEffect(() => {
-    if (!supabase) {
-        setLoadingSession(false);
-        return;
-    };
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoadingSession(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   // Funcions per actualitzar l'estat de manera segura
   const setCourses = (updater: React.SetStateAction<Course[]>) => {
@@ -293,13 +269,6 @@ const App: React.FC = () => {
     }
   };
 
-  if (loadingSession) {
-    return <div className="flex justify-center items-center h-screen text-lg">Carregant sessió...</div>;
-  }
-  if (!supabase || !session) {
-    return <AuthComponent />;
-  }
-
   if (viewMode === 'settings') {
     return (
       <SettingsPage
@@ -327,73 +296,137 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 font-sans text-slate-800">
-      <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="container mx-auto p-4 flex flex-wrap justify-between items-center gap-4">
-          <h1 className="text-2xl font-bold text-sky-700">Assistent de Dictats Esfera</h1>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setViewMode('settings')} className="p-2 rounded-full hover:bg-slate-200 transition-colors" title="Configuració">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+    <div className="flex h-screen overflow-hidden bg-[#F3F5F9] relative">
+      {/* Background Decorative Blobs */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-200/40 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-200/30 rounded-full blur-3xl"></div>
+      </div>
+
+      {/* Sidebar */}
+      <aside className="w-20 flex-shrink-0 z-20 flex flex-col items-center py-8 gap-8 glass-effect border-r border-white/20">
+         <div className="p-3 bg-slate-900 rounded-2xl text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+         </div>
+         
+         <nav className="flex flex-col gap-6 w-full items-center">
+            <button 
+              onClick={() => setViewMode('main')}
+              className={`p-3 rounded-2xl transition-all ${viewMode === 'main' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400 hover:bg-white/50 hover:text-slate-600'}`}
+              title="Escriptori"
+            >
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
             </button>
-             {supabase && (
-              <button onClick={() => supabase.auth.signOut()} className="text-sm text-slate-600 hover:text-sky-700" title="Tancar sessió">
-                Sortir
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
-      
-      <main className="container mx-auto p-4 md:p-6 space-y-6">
-        <ClassTabs 
-          courses={courses}
-          classGroups={classGroups}
-          selectedClassGroupId={selectedClassGroupId}
-          onSelectClassGroup={handleSelectClassGroup}
-        />
+            <button 
+              onClick={() => setViewMode('settings')}
+              className={`p-3 rounded-2xl transition-all ${viewMode === 'settings' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400 hover:bg-white/50 hover:text-slate-600'}`}
+              title="Configuració"
+            >
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+         </nav>
+         
+         <div className="mt-auto">
+             {/* Placeholder for logout if auth returns later */}
+         </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col min-w-0 z-10 p-6 md:p-8 gap-8 overflow-hidden">
         
-        {selectedClassGroup ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            <div className="lg:col-span-1 space-y-6">
-              <StudentList 
-                students={currentStudents}
-                onAddStudent={handleAddStudent}
-                onSelectStudent={setSelectedStudentId}
-                selectedStudentId={selectedStudentId}
-              />
-              <div className="bg-white rounded-lg shadow p-6 space-y-4">
-                  <h2 className="text-lg font-bold border-b pb-2">Eines i Exportació</h2>
-                  <button onClick={handleGenerateAllReports} disabled={isGeneratingAll} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-indigo-300">
-                    {isGeneratingAll ? 'Generant...' : 'Generar Tots els Informes Pendents'}
-                  </button>
-                  <button onClick={handleExport} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
-                     Exportar
-                  </button>
-                  {copySuccess && <div className="text-center text-sm font-semibold text-green-600 bg-green-100 p-2 rounded-md">{copySuccess}</div>}
-              </div>
-            </div>
-            <div className="lg:col-span-2">
-              {selectedStudent ? (
-                <StudentDetail 
-                  student={selectedStudent}
-                  classSubjects={resolvedSubjectsForSelectedClass}
-                  onUpdateStudent={handleUpdateStudent}
-                />
-              ) : (
-                <div className="bg-white rounded-lg shadow p-10 text-center">
-                  <h2 className="text-xl font-semibold">No hi ha cap alumne/a seleccionat/da</h2>
-                  <p className="text-slate-500 mt-2">Selecciona un alumne de la llista o afegeix-ne un de nou.</p>
-                </div>
-              )}
-            </div>
+        {/* Header Area */}
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 flex-shrink-0">
+          <div>
+             <h1 className="text-3xl md:text-4xl font-bold text-slate-900">Bon dia, Mestre!</h1>
+             <p className="text-slate-500 mt-1">Fem que avui sigui un dia productiu.</p>
           </div>
-        ) : (
-           <div className="bg-white rounded-lg shadow p-10 text-center">
-              <h2 className="text-xl font-semibold">Benvingut/da!</h2>
-              <p className="text-slate-500 mt-2">No hi ha cap classe seleccionada. Selecciona una classe de les pestanyes de dalt o crea'n una de nova a la pàgina de configuració.</p>
+          
+          <div className="flex items-center gap-8">
+             <div className="hidden md:block">
+                <p className="text-sm text-slate-400 mb-1">Alumnes</p>
+                <p className="text-2xl font-semibold text-slate-800 flex items-start gap-1">
+                  {currentStudents.length} <span className="text-xs text-slate-400 mt-1">↗</span>
+                </p>
+             </div>
+             <div className="hidden md:block">
+                <p className="text-sm text-slate-400 mb-1">Progrés Classe</p>
+                <p className="text-2xl font-semibold text-slate-800 flex items-start gap-1">
+                  {Math.round((currentStudents.filter(s => s.generalComment.report).length / (currentStudents.length || 1)) * 100)}% <span className="text-xs text-slate-400 mt-1">↗</span>
+                </p>
+             </div>
+             <button onClick={handleGenerateAllReports} disabled={isGeneratingAll} className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-full font-medium shadow-lg shadow-slate-300/50 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                 {isGeneratingAll ? 'Generant...' : '+ Generar Tot'}
+             </button>
+          </div>
+        </header>
+
+        {/* Dashboard Content */}
+        <div className="flex-1 flex flex-col gap-6 min-h-0">
+           
+           {/* Class Selector (Horizontal Scroll) */}
+           <div className="flex-shrink-0">
+              <ClassTabs 
+                courses={courses}
+                classGroups={classGroups}
+                selectedClassGroupId={selectedClassGroupId}
+                onSelectClassGroup={handleSelectClassGroup}
+              />
            </div>
-        )}
+           
+           {selectedClassGroup ? (
+             <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
+                
+                {/* Left Column: Student List (To-do style) */}
+                <div className="lg:col-span-4 flex flex-col min-h-0">
+                    <StudentList 
+                        students={currentStudents}
+                        onAddStudent={handleAddStudent}
+                        onSelectStudent={setSelectedStudentId}
+                        selectedStudentId={selectedStudentId}
+                    />
+                    
+                    {/* Mini footer actions */}
+                    <div className="mt-4 flex gap-2">
+                        <button onClick={handleExport} className="flex-1 bg-white/50 hover:bg-white text-slate-700 py-3 rounded-2xl font-medium transition-colors border border-white shadow-sm flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                            Exportar
+                        </button>
+                    </div>
+                     {copySuccess && <div className="mt-2 text-center text-xs font-bold text-green-600 bg-green-100/80 py-1 px-3 rounded-full self-center animate-pulse">{copySuccess}</div>}
+                </div>
+
+                {/* Right Column: Workspace / Details */}
+                <div className="lg:col-span-8 flex flex-col min-h-0 bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden relative">
+                    {selectedStudent ? (
+                        <StudentDetail 
+                          student={selectedStudent}
+                          classSubjects={resolvedSubjectsForSelectedClass}
+                          onUpdateStudent={handleUpdateStudent}
+                        />
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-center p-10 text-slate-400">
+                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                            </div>
+                            <p className="text-lg font-medium text-slate-500">Selecciona un alumne</p>
+                            <p className="text-sm mt-2">Tria un alumne de la llista de l'esquerra per començar a editar el seu informe.</p>
+                        </div>
+                    )}
+                </div>
+
+             </div>
+           ) : (
+               <div className="flex-1 flex flex-col items-center justify-center text-center">
+                   <div className="w-24 h-24 bg-white rounded-3xl shadow-xl flex items-center justify-center mb-6">
+                       <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                   </div>
+                   <h2 className="text-2xl font-bold text-slate-800">Benvingut a l'Assistent</h2>
+                   <p className="text-slate-500 max-w-md mt-2">Selecciona una classe a la part superior o crea'n una de nova a la configuració per començar.</p>
+               </div>
+           )}
+        </div>
       </main>
     </div>
   );
