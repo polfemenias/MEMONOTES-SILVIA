@@ -11,16 +11,20 @@ interface SpeechRecognitionOptions {
   onTranscript: (transcript: string) => void;
 }
 
-// FIX: Cast window to `any` to access browser-specific speech recognition APIs without TypeScript errors.
-// Rename to `SpeechRecognitionApi` to avoid conflict with the `SpeechRecognition` type.
 const SpeechRecognitionApi = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 const isSupported = !!SpeechRecognitionApi;
+
+const capitalizeFirstLetter = (string: string) => {
+    if (!string) return string;
+    return string.charAt(0).toUpperCase() + string.slice(1);
+};
 
 export const useSpeechRecognition = ({ onTranscript }: SpeechRecognitionOptions): SpeechRecognitionHook => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
-  // FIX: Use `any` for the ref type as SpeechRecognition types are not available.
   const recognitionRef = useRef<any | null>(null);
+  // Ref to track if the user *intentionally* stopped the recording
+  const userStoppedRef = useRef(false);
 
   useEffect(() => {
     if (!isSupported) {
@@ -35,30 +39,48 @@ export const useSpeechRecognition = ({ onTranscript }: SpeechRecognitionOptions)
 
     recognition.onstart = () => {
       setIsListening(true);
+      userStoppedRef.current = false;
     };
 
     recognition.onend = () => {
-      setIsListening(false);
-      setTranscript(''); // Reset for next use
+      // If the user didn't click stop, but the browser stopped it (silence), restart it.
+      if (!userStoppedRef.current) {
+         try {
+            recognition.start();
+         } catch (e) {
+            // Sometimes it might fail to restart immediately
+            setIsListening(false);
+         }
+      } else {
+         setIsListening(false);
+         setTranscript('');
+      }
     };
 
-    // FIX: Use `any` for event type due to missing speech recognition typings.
     recognition.onerror = (event: any) => {
+      // If not-allowed or service-not-allowed, we should probably stop trying
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          userStoppedRef.current = true;
+          setIsListening(false);
+      }
       console.error('Speech recognition error:', event.error);
-      setIsListening(false);
     };
 
-    // FIX: Use `any` for event type due to missing speech recognition typings.
     recognition.onresult = (event: any) => {
-      let finalTranscript = '';
+      let finalTranscriptChunk = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
+          finalTranscriptChunk += event.results[i][0].transcript;
         }
       }
-      if (finalTranscript) {
-        setTranscript(prev => prev + finalTranscript);
-        onTranscript(finalTranscript);
+      
+      if (finalTranscriptChunk) {
+        const cleanText = finalTranscriptChunk.trim();
+        if (cleanText) {
+            const capitalizedText = capitalizeFirstLetter(cleanText);
+            setTranscript(prev => prev + capitalizedText);
+            onTranscript(capitalizedText);
+        }
       }
     };
     
@@ -66,6 +88,7 @@ export const useSpeechRecognition = ({ onTranscript }: SpeechRecognitionOptions)
 
     return () => {
         if(recognitionRef.current) {
+            userStoppedRef.current = true; // Ensure we don't auto-restart on unmount
             recognitionRef.current.stop();
         }
     };
@@ -75,12 +98,18 @@ export const useSpeechRecognition = ({ onTranscript }: SpeechRecognitionOptions)
   const startListening = () => {
     if (recognitionRef.current && !isListening) {
       setTranscript('');
-      recognitionRef.current.start();
+      userStoppedRef.current = false;
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        console.error("Error starting speech recognition:", e);
+      }
     }
   };
 
   const stopListening = () => {
     if (recognitionRef.current && isListening) {
+      userStoppedRef.current = true; // Mark as intentional stop
       recognitionRef.current.stop();
     }
   };

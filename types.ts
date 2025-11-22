@@ -1,3 +1,4 @@
+
 export enum Grade {
   Excelent = 'Assoliment Excel·lent',
   Notable = 'Assoliment Notable',
@@ -10,27 +11,41 @@ export interface AITextField {
   report: string;
 }
 
+export type Trimester = '1' | '2' | '3' | 'final';
+
+export const TRIMESTERS: { id: Trimester; label: string }[] = [
+    { id: '1', label: '1r Trimestre' },
+    { id: '2', label: '2n Trimestre' },
+    { id: '3', label: '3r Trimestre' },
+    { id: 'final', label: 'Final de Curs' },
+];
+
 export interface CourseSubject {
   subjectId: string;
-  workedContent: string;
+  // Ara el contingut treballat depèn del trimestre
+  workedContent: Record<Trimester, string>;
 }
 
 export interface StudentSubject {
   subjectId: string;
   grade: Grade;
   comment: AITextField;
-  customWorkedContent?: string; // Camp nou per adaptacions (PI)
+  customWorkedContent?: string; // Adaptació específica (PI) per a aquest trimestre
+}
+
+export interface EvaluationData {
+    personalAspects: AITextField;
+    generalComment: AITextField;
+    subjects: StudentSubject[];
 }
 
 export interface Student {
   id: string;
   name: string;
-  personalAspects: AITextField;
-  generalComment: AITextField;
-  subjects: StudentSubject[];
+  // Estructura niada per trimestre
+  evaluations: Record<Trimester, EvaluationData>;
 }
 
-// Llista mestra d'assignatures
 export interface Subject {
   id: string;
   name: string;

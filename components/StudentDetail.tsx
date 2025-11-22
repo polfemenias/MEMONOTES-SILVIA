@@ -1,14 +1,16 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import type { Student, StudentSubject, AITextField } from '../types';
-import { Grade } from '../types';
+import type { Student, StudentSubject, AITextField, Trimester, EvaluationData } from '../types';
+import { Grade, TRIMESTERS } from '../types';
 import { GRADE_OPTIONS } from '../constants';
 import AICommentGenerator from './AICommentGenerator';
 import { useAutoResizeTextArea } from '../hooks/useAutoResizeTextArea';
+import SpeechToTextButton from './SpeechToTextButton';
 
 interface ResolvedSubject {
   id: string;
   name: string;
-  workedContent: string;
+  workedContent: Record<Trimester, string>;
 }
 
 interface StudentDetailProps {
@@ -17,72 +19,82 @@ interface StudentDetailProps {
   onUpdateStudent: (student: Student) => void;
 }
 
-// Petit component auxiliar per al textarea d'edició de continguts AMB ESTAT LOCAL
-// Això evita pèrdua de focus en escriure
 const AutoResizingTextArea: React.FC<{ value: string, onChange: (val: string) => void, placeholder?: string }> = ({ value, onChange, placeholder }) => {
     const [localValue, setLocalValue] = useState(value);
     const ref = useRef<HTMLTextAreaElement>(null);
     useAutoResizeTextArea(ref, localValue);
 
-    useEffect(() => {
-        setLocalValue(value);
-    }, [value]);
+    useEffect(() => { setLocalValue(value); }, [value]);
 
-    const handleBlur = () => {
-        if (localValue !== value) {
-            onChange(localValue);
-        }
+    const handleBlur = () => { if (localValue !== value) onChange(localValue); };
+    const handleTranscript = (text: string) => {
+        const newValue = localValue ? `${localValue} ${text}` : text;
+        setLocalValue(newValue);
+        onChange(newValue);
     };
 
     return (
-        <textarea
-            ref={ref}
-            value={localValue}
-            onChange={(e) => setLocalValue(e.target.value)}
-            onBlur={handleBlur}
-            className="w-full p-4 rounded-2xl bg-white text-sm text-slate-700 border-2 border-indigo-100 focus:border-indigo-300 focus:ring-0 resize-none overflow-hidden shadow-sm"
-            placeholder={placeholder}
-        />
+        <div className="relative">
+            <textarea
+                ref={ref}
+                value={localValue}
+                onChange={(e) => setLocalValue(e.target.value)}
+                onBlur={handleBlur}
+                className="w-full p-4 pr-12 rounded-2xl bg-white text-sm text-slate-700 border-2 border-indigo-100 focus:border-indigo-300 focus:ring-0 resize-none overflow-hidden shadow-sm"
+                placeholder={placeholder}
+            />
+            <div className="absolute top-2 right-2">
+                <SpeechToTextButton onTranscript={handleTranscript} />
+            </div>
+        </div>
     )
 }
 
 const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, onUpdateStudent }) => {
+  const [activeTrimester, setActiveTrimester] = useState<Trimester>('1');
   const [activeTab, setActiveTab] = useState('personal');
   const [isEditingContent, setIsEditingContent] = useState(false);
   
+  // Dades del trimestre actual
+  const currentEvaluation: EvaluationData = student.evaluations[activeTrimester];
+
   useEffect(() => {
     if (activeTab !== 'personal' && activeTab !== 'general') {
       const subjectExists = classSubjects.some(s => s.id === activeTab);
-      if (!subjectExists) {
-        setActiveTab('personal');
-      }
+      if (!subjectExists) setActiveTab('personal');
     }
-    // Reset editing state when tab changes
     setIsEditingContent(false);
   }, [classSubjects, activeTab]);
 
+  // Update Helpers
+  const updateEvaluation = (updates: Partial<EvaluationData>) => {
+      const newEvaluations = { ...student.evaluations };
+      newEvaluations[activeTrimester] = { ...newEvaluations[activeTrimester], ...updates };
+      onUpdateStudent({ ...student, evaluations: newEvaluations });
+  };
+
   const handleUpdateStudentField = useCallback((field: 'personalAspects' | 'generalComment', value: AITextField) => {
-    onUpdateStudent({ ...student, [field]: value });
-  }, [student, onUpdateStudent]);
+    updateEvaluation({ [field]: value });
+  }, [student, activeTrimester, onUpdateStudent]);
   
   const handleUpdateStudentSubject = useCallback((subjectId: string, updates: Partial<StudentSubject>) => {
-    const updatedSubjects = student.subjects.map(s => 
+    const updatedSubjects = currentEvaluation.subjects.map(s => 
       s.subjectId === subjectId ? { ...s, ...updates } : s
     );
-    onUpdateStudent({ ...student, subjects: updatedSubjects });
-  }, [student, onUpdateStudent]);
+    updateEvaluation({ subjects: updatedSubjects });
+  }, [student, activeTrimester, onUpdateStudent, currentEvaluation]);
   
   const renderTabContent = () => {
     if (activeTab === 'personal') {
       return (
         <div className="animate-fadeIn">
             <AICommentGenerator
-            label="Aspectes Personals i Evolutius"
-            notes={student.personalAspects.notes}
-            report={student.personalAspects.report}
-            onNotesChange={(newNotes) => handleUpdateStudentField('personalAspects', { ...student.personalAspects, notes: newNotes })}
-            onReportChange={(newReport) => handleUpdateStudentField('personalAspects', { ...student.personalAspects, report: newReport })}
-            generationContext={{ type: 'personal', student, subjects: classSubjects }}
+            label={`Aspectes Personals (${TRIMESTERS.find(t=>t.id===activeTrimester)?.label})`}
+            notes={currentEvaluation.personalAspects.notes}
+            report={currentEvaluation.personalAspects.report}
+            onNotesChange={(newNotes) => handleUpdateStudentField('personalAspects', { ...currentEvaluation.personalAspects, notes: newNotes })}
+            onReportChange={(newReport) => handleUpdateStudentField('personalAspects', { ...currentEvaluation.personalAspects, report: newReport })}
+            generationContext={{ type: 'personal', studentName: student.name, subjects: currentEvaluation.subjects, resolvedSubjects: classSubjects }}
             />
         </div>
       );
@@ -91,25 +103,25 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
       return (
          <div className="animate-fadeIn">
             <AICommentGenerator
-            label="Comentari General Final"
-            notes={student.generalComment.notes}
-            report={student.generalComment.report}
-            onNotesChange={(newNotes) => handleUpdateStudentField('generalComment', { ...student.generalComment, notes: newNotes })}
-            onReportChange={(newReport) => handleUpdateStudentField('generalComment', { ...student.generalComment, report: newReport })}
+            label={`Comentari General (${TRIMESTERS.find(t=>t.id===activeTrimester)?.label})`}
+            notes={currentEvaluation.generalComment.notes}
+            report={currentEvaluation.generalComment.report}
+            onNotesChange={(newNotes) => handleUpdateStudentField('generalComment', { ...currentEvaluation.generalComment, notes: newNotes })}
+            onReportChange={(newReport) => handleUpdateStudentField('generalComment', { ...currentEvaluation.generalComment, report: newReport })}
             generationContext={{ type: 'general' }}
             />
          </div>
       );
     }
 
-    const studentSubject = student.subjects.find(s => s.subjectId === activeTab);
+    const studentSubject = currentEvaluation.subjects.find(s => s.subjectId === activeTab);
     const subject = classSubjects.find(s => s.id === activeTab);
     if (!studentSubject || !subject) return null;
 
-    // Determinació del contingut a mostrar: el personalitzat o el del curs
+    // Contingut treballat: Custom (alumne) > Curs (per trimestre) > String buit
     const displayContent = studentSubject.customWorkedContent !== undefined 
         ? studentSubject.customWorkedContent 
-        : subject.workedContent;
+        : (subject.workedContent[activeTrimester] || '');
 
     return (
       <div className="space-y-8 animate-fadeIn">
@@ -123,7 +135,7 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
                         onClick={() => setIsEditingContent(!isEditingContent)}
                         className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md"
                     >
-                        {isEditingContent ? 'Fet' : 'Personalitzar / Editar'}
+                        {isEditingContent ? 'Fet' : 'Personalitzar'}
                     </button>
                 </div>
                 
@@ -131,28 +143,24 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
                    <AutoResizingTextArea 
                         value={displayContent}
                         onChange={(val) => handleUpdateStudentSubject(subject.id, { customWorkedContent: val })}
-                        placeholder="Escriu els continguts adaptats per aquest alumne..."
+                        placeholder={`Continguts adaptats per ${student.name}...`}
                    />
                 ) : (
                     <div className="w-full p-4 rounded-2xl bg-slate-50 text-sm text-slate-600 leading-relaxed border border-slate-100 whitespace-pre-wrap min-h-[5rem]">
-                        {displayContent || <span className="text-slate-400 italic">No s'han definit continguts.</span>}
+                        {displayContent || <span className="text-slate-400 italic">No s'han definit continguts per aquest trimestre.</span>}
                     </div>
                 )}
             </div>
             <div>
-                <label htmlFor={`grade-${subject.id}`} className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Nota</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Nota</label>
                 <div className="relative">
                     <select
-                        id={`grade-${subject.id}`}
                         value={studentSubject.grade}
                         onChange={(e) => handleUpdateStudentSubject(subject.id, { grade: e.target.value as Grade })}
                         className="w-full p-4 border-none rounded-2xl bg-indigo-50 text-indigo-900 font-semibold appearance-none focus:ring-2 focus:ring-indigo-200 cursor-pointer"
                     >
                         {GRADE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                     </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-indigo-600">
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
                 </div>
             </div>
         </div>
@@ -168,7 +176,7 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
                 type: 'subject',
                 grade: studentSubject.grade,
                 subjectName: subject.name,
-                workedContent: displayContent, // Passem el contingut (adaptat o no) a la IA
+                workedContent: displayContent,
             }}
           />
         </div>
@@ -191,23 +199,42 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header Section */}
-      <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md">
-                {student.name.charAt(0)}
+      {/* Header with Name and Trimester Tabs */}
+      <div className="px-8 py-6 border-b border-slate-100 bg-white/50 backdrop-blur-sm sticky top-0 z-10">
+         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+             <div className="flex items-center gap-4 self-start">
+                <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md">
+                    {student.name.charAt(0)}
+                </div>
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800">{student.name}</h2>
+                    <p className="text-xs text-slate-400">Informe d'Avaluació</p>
+                </div>
             </div>
-            <div>
-                <h2 className="text-2xl font-bold text-slate-800">{student.name}</h2>
-                <p className="text-xs text-slate-400">Informe Trimestral</p>
+            
+            {/* Trimester Pills */}
+            <div className="bg-slate-100 p-1 rounded-full flex self-start md:self-auto">
+                {TRIMESTERS.map(t => (
+                    <button
+                        key={t.id}
+                        onClick={() => setActiveTrimester(t.id)}
+                        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                            activeTrimester === t.id 
+                            ? 'bg-white text-indigo-600 shadow-sm' 
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                        {t.label}
+                    </button>
+                ))}
             </div>
-        </div>
+         </div>
       </div>
 
-      {/* Tabs Scroll Area */}
+      {/* Section Tabs */}
       <div className="px-8 py-4 border-b border-slate-50 overflow-x-auto no-scrollbar">
         <div className="flex gap-2 min-w-max">
-            <TabButton id="personal" label="Personal" isActive={activeTab === 'personal'} onClick={() => setActiveTab('personal')} />
+            <TabButton id="personal" label="Aspectes Personals" isActive={activeTab === 'personal'} onClick={() => setActiveTab('personal')} />
             {classSubjects.map(s => (
                 <TabButton key={s.id} id={s.id} label={s.name} isActive={activeTab === s.id} onClick={() => setActiveTab(s.id)} />
             ))}
