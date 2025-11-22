@@ -1,5 +1,17 @@
-import type { ClassGroup, Subject, Student, StudentSubject, Course, CourseSubject } from '../types';
+import type { ClassGroup, Subject, Student, StudentSubject, Course } from '../types';
 import { Grade } from '../types';
+
+// Helper para generar contenido de relleno de unas 8 líneas (més robust)
+const generateDefaultContent = (topic: string) => {
+  return `1. Introducció pràctica als conceptes bàsics de: ${topic}.
+2. Desenvolupament progressiu de les competències clau associades.
+3. Realització d'activitats de treball individual i cooperatiu a l'aula.
+4. Utilització de diferents eines, recursos manipulatius i digitals d'aprenentatge.
+5. Avaluació continuada i formativa del progrés individual de l'alumne.
+6. Aplicació pràctica dels coneixements adquirits en situacions quotidianes.
+7. Reflexió sobre el propi procés d'aprenentatge i autoavaluació.
+8. Consolidació dels hàbits de treball, ordre i estudi autònom.`;
+};
 
 export const getInitialData = (): { initialCourses: Course[], initialClassGroups: ClassGroup[]; initialSubjects: Subject[] } => {
   // --- SUBJECTS (MASTER LIST) ---
@@ -9,9 +21,10 @@ export const getInitialData = (): { initialCourses: Course[], initialClassGroups
     { id: crypto.randomUUID(), name: 'CONEIXEMENT DEL MEDI' },
     { id: crypto.randomUUID(), name: 'PLÀSTICA' },
     { id: crypto.randomUUID(), name: 'ANGLÈS' },
+    { id: crypto.randomUUID(), name: 'EDUCACIÓ FÍSICA' },
   ];
 
-  const [catalan, mates, medi, plastica, angles] = initialSubjects;
+  const [catalan, mates, medi, plastica, angles, edfisica] = initialSubjects;
 
   // --- COURSES ---
   const initialCourses: Course[] = [
@@ -19,19 +32,21 @@ export const getInitialData = (): { initialCourses: Course[], initialClassGroups
       id: crypto.randomUUID(),
       name: 'TERCER',
       subjects: [
-        { subjectId: catalan.id, workedContent: 'Tipologies textuals, ortografia bàsica, sinònims i antònims.' },
-        { subjectId: mates.id, workedContent: 'Taules de multiplicar, problemes de dues operacions, cossos geomètrics.' },
-        { subjectId: medi.id, workedContent: 'L\'univers, el sistema solar, els paisatges.' },
-        { subjectId: plastica.id, workedContent: 'El color, les textures, el collage.' },
+        { subjectId: catalan.id, workedContent: `1. Tipologies textuals treballades: la carta formal, el conte i la descripció.\n2. Ortografia bàsica: accentuació (agudes, planes, esdrúixoles) i puntuació.\n3. Sinònims, antònims i famílies de paraules: ampliació de vocabulari.\n4. Comprensió lectora de textos narratius i informatius amb preguntes.\n5. Expressió oral: exposicions breus a l'aula sobre temes d'interès.\n6. Lectura en veu alta amb entonació, ritme i velocitat adequats.\n7. Realització de dictats preparats i no preparats setmanals.\n8. Ús del diccionari (paper i digital) com a eina de consulta habitual.` },
+        { subjectId: mates.id, workedContent: `1. Consolidació de les taules de multiplicar de l'1 al 9.\n2. Resolució de problemes de dues operacions (suma i resta) amb enunciats.\n3. Cossos geomètrics: identificació de prismes, piràmides i cossos rodons.\n4. Càlcul mental diari: estratègies de descomposició de suma i resta.\n5. Mesura: unitats de longitud, capacitat i massa, i els seus instruments.\n6. Tractament de la informació: interpretació de gràfics de barres.\n7. Introducció a les fraccions senzilles: meitat, terç i quart.\n8. Iniciació a la divisió exacta i entera amb una xifra.` },
+        { subjectId: medi.id, workedContent: `1. L'univers i el sistema solar: característiques dels planetes i estrelles.\n2. Els paisatges de l'entorn: muntanya, plana i costa. Elements naturals.\n3. El cicle de l'aigua i la seva importància per a la vida.\n4. Els éssers vius: classificació d'animals i plantes de l'entorn proper.\n5. El cos humà: aparells i sistemes bàsics (respiratori, digestiu).\n6. Hàbits saludables: alimentació equilibrada, higiene i descans.\n7. L'orientació espacial: interpretació senzilla de mapes i plànols.\n8. Accions per al respecte i la cura del medi ambient (reciclatge).` },
+        { subjectId: plastica.id, workedContent: generateDefaultContent('Arts Plàstiques i el color') },
+        { subjectId: edfisica.id, workedContent: generateDefaultContent('Educació Física i salut') },
       ]
     },
     {
       id: crypto.randomUUID(),
       name: 'SEGON',
       subjects: [
-          { subjectId: catalan.id, workedContent: 'Lectoescriptura, comprensió lectora, expressió escrita.' },
-          { subjectId: mates.id, workedContent: 'Numeració i càlcul, resolució de problemes, geometria.' },
-          { subjectId: medi.id, workedContent: 'El cos humà, els éssers vius, el pas del temps.' },
+          { subjectId: catalan.id, workedContent: generateDefaultContent('Lectoescriptura i comprensió') },
+          { subjectId: mates.id, workedContent: generateDefaultContent('Numeració i càlcul bàsic') },
+          { subjectId: medi.id, workedContent: generateDefaultContent('Entorn proper i natura') },
+          { subjectId: edfisica.id, workedContent: generateDefaultContent('Psicomotricitat') },
       ]
     },
      {
@@ -45,19 +60,19 @@ export const getInitialData = (): { initialCourses: Course[], initialClassGroups
   const initialClassGroups: ClassGroup[] = [
     {
       id: crypto.randomUUID(),
-      name: 'TERCER A',
+      name: 'Grup A',
       courseId: initialCourses[0].id,
       students: [],
     },
     {
       id: crypto.randomUUID(),
-      name: 'TERCER B',
+      name: 'Grup B',
       courseId: initialCourses[0].id,
       students: [],
     },
     {
       id: crypto.randomUUID(),
-      name: 'SEGON A',
+      name: 'Grup A',
       courseId: initialCourses[1].id,
       students: [],
     },

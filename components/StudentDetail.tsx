@@ -1,8 +1,9 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { Student, StudentSubject, AITextField } from '../types';
 import { Grade } from '../types';
 import { GRADE_OPTIONS } from '../constants';
 import AICommentGenerator from './AICommentGenerator';
+import { useAutoResizeTextArea } from '../hooks/useAutoResizeTextArea';
 
 interface ResolvedSubject {
   id: string;
@@ -16,8 +17,38 @@ interface StudentDetailProps {
   onUpdateStudent: (student: Student) => void;
 }
 
+// Petit component auxiliar per al textarea d'edició de continguts AMB ESTAT LOCAL
+// Això evita pèrdua de focus en escriure
+const AutoResizingTextArea: React.FC<{ value: string, onChange: (val: string) => void, placeholder?: string }> = ({ value, onChange, placeholder }) => {
+    const [localValue, setLocalValue] = useState(value);
+    const ref = useRef<HTMLTextAreaElement>(null);
+    useAutoResizeTextArea(ref, localValue);
+
+    useEffect(() => {
+        setLocalValue(value);
+    }, [value]);
+
+    const handleBlur = () => {
+        if (localValue !== value) {
+            onChange(localValue);
+        }
+    };
+
+    return (
+        <textarea
+            ref={ref}
+            value={localValue}
+            onChange={(e) => setLocalValue(e.target.value)}
+            onBlur={handleBlur}
+            className="w-full p-4 rounded-2xl bg-white text-sm text-slate-700 border-2 border-indigo-100 focus:border-indigo-300 focus:ring-0 resize-none overflow-hidden shadow-sm"
+            placeholder={placeholder}
+        />
+    )
+}
+
 const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, onUpdateStudent }) => {
   const [activeTab, setActiveTab] = useState('personal');
+  const [isEditingContent, setIsEditingContent] = useState(false);
   
   useEffect(() => {
     if (activeTab !== 'personal' && activeTab !== 'general') {
@@ -26,6 +57,8 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
         setActiveTab('personal');
       }
     }
+    // Reset editing state when tab changes
+    setIsEditingContent(false);
   }, [classSubjects, activeTab]);
 
   const handleUpdateStudentField = useCallback((field: 'personalAspects' | 'generalComment', value: AITextField) => {
@@ -73,14 +106,38 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
     const subject = classSubjects.find(s => s.id === activeTab);
     if (!studentSubject || !subject) return null;
 
+    // Determinació del contingut a mostrar: el personalitzat o el del curs
+    const displayContent = studentSubject.customWorkedContent !== undefined 
+        ? studentSubject.customWorkedContent 
+        : subject.workedContent;
+
     return (
       <div className="space-y-8 animate-fadeIn">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Continguts Treballats (Curs)</label>
-                <div className="w-full p-4 rounded-2xl bg-slate-50 text-sm text-slate-600 leading-relaxed border border-slate-100">
-                {subject.workedContent || <span className="text-slate-400 italic">No s'han definit continguts.</span>}
+            <div className="md:col-span-2 flex flex-col">
+                <div className="flex justify-between items-center mb-2">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        Continguts Treballats {studentSubject.customWorkedContent !== undefined && <span className="text-indigo-600">(Adaptat)</span>}
+                    </label>
+                    <button 
+                        onClick={() => setIsEditingContent(!isEditingContent)}
+                        className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md"
+                    >
+                        {isEditingContent ? 'Fet' : 'Personalitzar / Editar'}
+                    </button>
                 </div>
+                
+                {isEditingContent ? (
+                   <AutoResizingTextArea 
+                        value={displayContent}
+                        onChange={(val) => handleUpdateStudentSubject(subject.id, { customWorkedContent: val })}
+                        placeholder="Escriu els continguts adaptats per aquest alumne..."
+                   />
+                ) : (
+                    <div className="w-full p-4 rounded-2xl bg-slate-50 text-sm text-slate-600 leading-relaxed border border-slate-100 whitespace-pre-wrap min-h-[5rem]">
+                        {displayContent || <span className="text-slate-400 italic">No s'han definit continguts.</span>}
+                    </div>
+                )}
             </div>
             <div>
                 <label htmlFor={`grade-${subject.id}`} className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Nota</label>
@@ -111,7 +168,7 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
                 type: 'subject',
                 grade: studentSubject.grade,
                 subjectName: subject.name,
-                workedContent: subject.workedContent,
+                workedContent: displayContent, // Passem el contingut (adaptat o no) a la IA
             }}
           />
         </div>

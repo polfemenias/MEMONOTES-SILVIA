@@ -19,6 +19,7 @@ export interface StudentSubject {
   subjectId: string;
   grade: Grade;
   comment: AITextField;
+  customWorkedContent?: string; // Camp nou per adaptacions (PI)
 }
 
 export interface Student {

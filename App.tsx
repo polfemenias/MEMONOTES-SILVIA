@@ -94,6 +94,35 @@ const App: React.FC = () => {
     const newClassGroup = classGroups.find(cg => cg.id === id);
     setSelectedStudentId(newClassGroup?.students[0]?.id ?? null);
   };
+
+  // Reordenar Classes (Drag and Drop) - GLOBAL
+  const handleReorderClassGroups = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    
+    const updatedClassGroups = [...classGroups];
+    const [movedGroup] = updatedClassGroups.splice(fromIndex, 1);
+    updatedClassGroups.splice(toIndex, 0, movedGroup);
+    
+    setClassGroups(updatedClassGroups);
+  };
+
+  // Reordenar Alumnes (Drag and Drop)
+  const handleReorderStudents = (fromIndex: number, toIndex: number) => {
+    if (!selectedClassGroup) return;
+    
+    // Copiem els alumnes actuals
+    const newStudents = [...selectedClassGroup.students];
+    // Movem l'element
+    const [movedStudent] = newStudents.splice(fromIndex, 1);
+    newStudents.splice(toIndex, 0, movedStudent);
+
+    // Actualitzem l'estat global
+    setClassGroups(prev => prev.map(cg => 
+      cg.id === selectedClassGroupId 
+        ? { ...cg, students: newStudents }
+        : cg
+    ));
+  };
   
   // Handlers per a Cursos
   const handleAddCourse = (name: string) => {
@@ -124,10 +153,12 @@ const App: React.FC = () => {
     setClassGroups(prev => prev.map(cg => cg.id === id ? { ...cg, name } : cg));
   };
   const handleDeleteClassGroup = (id: string) => {
-    const newClassGroups = classGroups.filter(cg => cg.id !== id);
-    setClassGroups(newClassGroups);
-    if (selectedClassGroupId === id) {
-      setSelectedClassGroupId(newClassGroups[0]?.id ?? null);
+    if (window.confirm("Estàs segur que vols esborrar aquesta classe i tots els seus alumnes?")) {
+        const newClassGroups = classGroups.filter(cg => cg.id !== id);
+        setClassGroups(newClassGroups);
+        if (selectedClassGroupId === id) {
+        setSelectedClassGroupId(newClassGroups[0]?.id ?? null);
+        }
     }
   };
   
@@ -164,6 +195,8 @@ const App: React.FC = () => {
       setClassGroups(prev => prev.map(cg => ({ ...cg, students: cg.students.map(s => s.id === updatedStudent.id ? updatedStudent : s) })));
   };
   const handleDeleteStudent = (classGroupId: string, studentId: string) => {
+    if (!window.confirm("Segur que vols esborrar aquest alumne?")) return;
+
     let originalIndex = -1;
     const classGroup = classGroups.find(cg => cg.id === classGroupId);
     if (classGroup) originalIndex = classGroup.students.findIndex(s => s.id === studentId);
@@ -372,6 +405,8 @@ const App: React.FC = () => {
                 classGroups={classGroups}
                 selectedClassGroupId={selectedClassGroupId}
                 onSelectClassGroup={handleSelectClassGroup}
+                onReorderClassGroups={handleReorderClassGroups}
+                onDeleteClassGroup={handleDeleteClassGroup}
               />
            </div>
            
@@ -385,6 +420,8 @@ const App: React.FC = () => {
                         onAddStudent={handleAddStudent}
                         onSelectStudent={setSelectedStudentId}
                         selectedStudentId={selectedStudentId}
+                        onReorderStudents={handleReorderStudents}
+                        onDeleteStudent={(id) => handleDeleteStudent(selectedClassGroup.id, id)}
                     />
                     
                     {/* Mini footer actions */}

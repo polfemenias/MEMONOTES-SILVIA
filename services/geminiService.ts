@@ -200,11 +200,16 @@ export const generateMissingReportsForClass = async (students: Student[], classS
             if (!ss.comment.report && ss.comment.notes) {
                 const subjectInfo = classSubjects.find(s => s.id === ss.subjectId);
                 if (subjectInfo) {
+                    // Aquí fem servir el contingut personalitzat si existeix
+                    const workedContent = ss.customWorkedContent !== undefined 
+                        ? ss.customWorkedContent 
+                        : subjectInfo.workedContent;
+
                     const context: GenerationContext = {
                         type: 'subject',
                         grade: ss.grade,
                         subjectName: subjectInfo.name,
-                        workedContent: subjectInfo.workedContent,
+                        workedContent: workedContent,
                     };
                     const promise = generateReportComment(ss.comment.notes, context)
                         .then(report => {

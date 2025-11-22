@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useAutoResizeTextArea } from '../hooks/useAutoResizeTextArea';
@@ -52,11 +53,10 @@ const StudentDictation: React.FC<StudentDictationProps> = ({ onAddStudents }) =>
         return (
             <button
                 onClick={() => setIsPanelOpen(true)}
-                className="text-sm text-sky-600 hover:text-sky-800 flex items-center gap-2"
+                className="text-sm text-sky-600 hover:text-sky-800 flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-sky-50 transition-colors"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
-                    <path fillRule="evenodd" d="M5.5 8.5A.5.5 0 016 8v1a4 4 0 004 4 .5.5 0 010 1 5 5 0 01-5-5V8.5A.5.5 0 015.5 8.5zM14 9a.5.5 0 01.5-.5V8a5 5 0 00-5-5 .5.5 0 010-1 6 6 0 016 6v.5a.5.5 0 01-.5.5z" clipRule="evenodd" />
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
                 </svg>
                 Dictar i Afegir Alumnes
             </button>
@@ -64,9 +64,10 @@ const StudentDictation: React.FC<StudentDictationProps> = ({ onAddStudents }) =>
     }
 
     return (
-        <div className="p-4 border rounded-lg bg-white shadow-sm">
-            <p className="text-sm text-slate-600 mb-2">
-                Prem el micròfon i digues els noms dels alumnes. Fes una petita pausa entre cada nom. Podràs corregir-los abans de desar.
+        <div className="p-4 border rounded-lg bg-white shadow-sm border-sky-100">
+            <p className="text-sm text-slate-600 mb-2 flex items-center gap-2">
+                <span className="w-2 h-2 bg-sky-400 rounded-full animate-pulse"></span>
+                Prem el micròfon i digues els noms dels alumnes. Fes una petita pausa entre cada nom.
             </p>
             <div className="relative">
                 <textarea
@@ -74,28 +75,35 @@ const StudentDictation: React.FC<StudentDictationProps> = ({ onAddStudents }) =>
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     rows={5}
-                    className="w-full p-3 pr-12 border rounded-md shadow-sm resize-none overflow-hidden"
+                    className="w-full p-3 pr-12 border rounded-md shadow-sm resize-none overflow-hidden focus:ring-2 focus:ring-sky-200 focus:border-sky-400 outline-none transition-all"
                     placeholder="Ex:&#10;LAURA PÉREZ&#10;MARC SOLER&#10;SOFIA GARCIA"
                 />
                 <div className="absolute top-2 right-2">
                      <button
                         type="button"
                         onClick={isListening ? stopListening : startListening}
-                        className={`p-2 rounded-full transition-colors ${
-                            isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-sky-500 text-white hover:bg-sky-600'
+                        className={`p-2 rounded-full transition-all duration-300 ${
+                            isListening 
+                            ? 'bg-rose-500 text-white shadow-lg shadow-rose-200 scale-110' 
+                            : 'bg-slate-100 text-slate-400 hover:bg-sky-100 hover:text-sky-600'
                         }`}
                         title={isListening ? 'Aturar enregistrament' : 'Començar a dictar'}
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
-                            <path fillRule="evenodd" d="M5.5 8.5A.5.5 0 016 8v1a4 4 0 004 4 .5.5 0 010 1 5 5 0 01-5-5V8.5A.5.5 0 015.5 8.5zM14 9a.5.5 0 01.5-.5V8a5 5 0 00-5-5 .5.5 0 010-1 6 6 0 016 6v.5a.5.5 0 01-.5.5z" clipRule="evenodd" />
-                        </svg>
+                        {isListening ? (
+                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5 animate-pulse">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 7.5A2.25 2.25 0 0 1 7.5 5.25h9a2.25 2.25 0 0 1 2.25 2.25v9a2.25 2.25 0 0 1-2.25 2.25h-9a2.25 2.25 0 0 1-2.25-2.25v-9Z" />
+                            </svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+                            </svg>
+                        )}
                     </button>
                 </div>
             </div>
-            <div className="flex justify-end gap-2 mt-2">
-                <button onClick={() => setIsPanelOpen(false)} className="text-sm text-slate-600 hover:text-slate-900">Cancel·lar</button>
-                <button onClick={handleSave} className="text-sm bg-sky-600 text-white px-3 py-1 rounded-md hover:bg-sky-700">Desar Alumnes</button>
+            <div className="flex justify-end gap-2 mt-3">
+                <button onClick={() => setIsPanelOpen(false)} className="px-3 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors">Cancel·lar</button>
+                <button onClick={handleSave} className="px-4 py-1.5 text-sm font-medium bg-sky-600 text-white rounded-md hover:bg-sky-700 shadow-sm shadow-sky-200 transition-colors">Desar Alumnes</button>
             </div>
         </div>
     );
