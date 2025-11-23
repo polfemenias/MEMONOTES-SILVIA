@@ -94,36 +94,26 @@ export const generateReportComment = async (
       TASCA:
       Ets un assistent expert per a un mestre de primària. Redacta l'apartat "Comentari General / Valoració Global" del trimestre per a l'alumne: ${context.studentName}.
 
-      OBJECTIU:
-      El comentari ha de ser una síntesi clara i professional de l'evolució de l'alumne.
-      Has d'utilitzar les següents dades per decidir si el trimestre ha estat positiu o si necessita reforç.
+      DADES DE L'ALUMNE (Només per a context intern, NO ho has de resumir):
+      1. Aspectes Personals: "${context.personalAspects.notes} ${context.personalAspects.report}"
+      2. Rendiment Acadèmic: ${subjectDetails}
+      3. Notes específiques del mestre: ${specificNotes}
 
-      DADES DE L'ALUMNE:
-      1. Aspectes Personals:
-         "${context.personalAspects.notes} ${context.personalAspects.report}"
+      INSTRUCCIONS DE REDACCIÓ (MOLT IMPORTANT):
+      - L'usuari vol **UN ÚNIC PARÀGRAF** sintètic de tancament.
+      - **NO** facis un resum de les assignatures ni dels aspectes personals (aquesta informació ja surt detallada abans).
+      - El text ha de ser únicament una **conclusió final**, agraint l'esforç o demanant treball, i desitjant bon tancament de trimestre.
+      - Sigues molt concís (màxim 4-5 línies).
+
+      PLANTILLES DE TANCAMENT (Fes servir aquest estil o adapta aquestes frases directament):
       
-      2. Rendiment Acadèmic (Assignatures):
-      ${subjectDetails}
-
-      3. Notes específiques del mestre (Opcional):
-         ${specificNotes}
-
-      INSTRUCCIONS DE REDACCIÓ:
-      - Si NO hi ha notes específiques, genera un paràgraf de tancament sintètic utilitzant les plantilles de sota com a inspiració.
-      - Si hi ha notes, integra-les en el discurs.
-      - El to ha de ser proper i motivador.
-
-      PLANTILLES DE TANCAMENT (Utilitza aquestes frases com a base):
-      
-      CAS A (Evolució Positiva / Bona actitud / Notes satisfactòries o superiors):
-      Utilitza o adapta frases com:
+      SI L'ALUMNE VA BÉ (Evolució Positiva / Bona actitud / Notes satisfactòries o superiors):
       ${JSON.stringify(GENERAL_REPORT_CLOSURES.POSITIVE)}
       
-      CAS B (Necessita Reforç / Dificultats / Actitud millorable):
-      Utilitza o adapta frases com:
+      SI L'ALUMNE TÉ DIFICULTATS (Necessita Reforç / Actitud millorable):
       ${JSON.stringify(GENERAL_REPORT_CLOSURES.NEEDS_REINFORCEMENT)}
 
-      IMPORTANT: El text ha de ser en Català, proper i professional. No inventis fets que no estiguin a les dades.
+      IMPORTANT: El text ha de ser en Català, curt, proper i professional.
     `;
 
   } else if (context.type === 'subject') {
