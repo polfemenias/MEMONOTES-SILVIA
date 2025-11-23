@@ -63,3 +63,10 @@ export interface Course {
     name: string;
     subjects: CourseSubject[];
 }
+
+export interface AppData {
+    courses: Course[];
+    classGroups: ClassGroup[];
+    subjects: Subject[];
+    styleExamples?: string; // Added style preference
+}

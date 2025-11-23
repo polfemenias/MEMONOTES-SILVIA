@@ -39,9 +39,21 @@ export type GenerationContext =
 
 export const generateReportComment = async (
   notes: string,
-  context: GenerationContext
+  context: GenerationContext,
+  styleExamples?: string
 ): Promise<string> => {
   if (!ai) throw new Error("API Key missing");
+
+  // Construct the "Few-Shot" part of the prompt
+  const styleInstruction = styleExamples 
+    ? `
+    IMPORTANT: Hauràs de redactar l'informe imitant L'ESTIL, EL TO i EL VOCABULARI dels següents exemples proporcionats per l'usuari. Fixa't en com estructura les frases, com fa els elogis i com descriu les millores.
+
+    --- EXEMPLES D'ESTIL A IMITAR ---
+    ${styleExamples}
+    ---------------------------------
+    ` 
+    : '';
 
   let prompt = '';
 
@@ -54,18 +66,14 @@ export const generateReportComment = async (
     }).join('\n');
 
     prompt = `
-      Ets un assistent expert per a un mestre de primària. Redacta l'apartat "Aspectes Personals i Evolutius" de l'informe de ${context.studentName}.
-      
-      Estructura:
-      1. Progrés general i adaptació.
-      2. Rendiment acadèmic (síntesi).
-      3. Desenvolupament personal (autonomia, emocions).
-      4. Habilitats socials.
-      5. Tancament positiu.
+      ${styleInstruction}
 
-      Dades:
+      TASCA:
+      Ets un assistent expert per a un mestre de primària. Redacta l'apartat "Aspectes Personals i Evolutius" de l'informe de l'alumne: ${context.studentName}.
+      
+      Utilitza les següents dades (notes brutes del mestre) per construir l'informe, mantenint l'estil dels exemples superiors:
       - Notes personals: "${notes}"
-      - Assignatures:
+      - Assignatures (context global):
       ${subjectDetails}
     `;
 
@@ -75,19 +83,24 @@ export const generateReportComment = async (
         contextPrompt = `
         - Assignatura: "${context.subjectName}"
         - Nota: "${context.grade}"
-        - Continguts: "${context.workedContent || 'No especificats'}"
+        - Continguts treballats: "${context.workedContent || 'No especificats'}"
         `;
     } else if (context.type === 'general') {
         contextPrompt = '- Tipus: Valoració general del trimestre.';
     }
 
     prompt = `
-      Ets un assistent expert. Redacta un comentari d'informe (3-6 línies) en català formal i constructiu.
-      NO posis introduccions ("Aquí tens...").
+      ${styleInstruction}
 
-      Context:
+      TASCA:
+      Redacta un comentari d'informe escolar en català, basant-te en les següents dades i imitant l'estil dels exemples superiors (si n'hi ha).
+
+      Context específic:
       ${contextPrompt}
-      - Notes del mestre: "${notes}"
+      
+      - NOTES BRUTES DEL MESTRE: "${notes}"
+      
+      El text final ha de ser polit, professional però proper, i sense introduccions tipus "Aquí tens el text...". Directament el redactat.
     `;
   }
 
@@ -106,7 +119,7 @@ interface ResolvedClassSubject {
     workedContent: Record<Trimester, string>;
 }
 
-export const generateMissingReportsForClass = async (students: Student[], classSubjects: ResolvedClassSubject[], trimester: Trimester): Promise<Student[]> => {
+export const generateMissingReportsForClass = async (students: Student[], classSubjects: ResolvedClassSubject[], trimester: Trimester, styleExamples?: string): Promise<Student[]> => {
     if (!ai) return Promise.reject(new Error("API Key missing"));
     
     const studentsCopy = JSON.parse(JSON.stringify(students)) as Student[];
@@ -117,14 +130,14 @@ export const generateMissingReportsForClass = async (students: Student[], classS
 
         if (!evalData.personalAspects.report && evalData.personalAspects.notes) {
             const context: GenerationContext = { type: 'personal', studentName: student.name, subjects: evalData.subjects, resolvedSubjects: classSubjects };
-            const promise = generateReportComment(evalData.personalAspects.notes, context)
+            const promise = generateReportComment(evalData.personalAspects.notes, context, styleExamples)
                 .then(report => { evalData.personalAspects.report = report; });
             generationPromises.push(promise);
         }
 
         if (!evalData.generalComment.report && evalData.generalComment.notes) {
             const context: GenerationContext = { type: 'general' };
-            const promise = generateReportComment(evalData.generalComment.notes, context)
+            const promise = generateReportComment(evalData.generalComment.notes, context, styleExamples)
                 .then(report => { evalData.generalComment.report = report; });
             generationPromises.push(promise);
         }
@@ -143,7 +156,7 @@ export const generateMissingReportsForClass = async (students: Student[], classS
                         subjectName: subjectInfo.name,
                         workedContent: workedContent,
                     };
-                    const promise = generateReportComment(ss.comment.notes, context)
+                    const promise = generateReportComment(ss.comment.notes, context, styleExamples)
                         .then(report => {
                              const targetSub = evalData.subjects.find(s => s.subjectId === ss.subjectId);
                              if(targetSub) targetSub.comment.report = report;

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import SpeechToTextButton from './SpeechToTextButton';
 import { generateReportComment, GenerationContext } from '../services/geminiService';
@@ -10,9 +11,10 @@ interface AICommentGeneratorProps {
   onNotesChange: (notes: string) => void;
   onReportChange: (report: string) => void;
   generationContext: GenerationContext;
+  styleExamples?: string;
 }
 
-const AICommentGenerator: React.FC<AICommentGeneratorProps> = ({ label, notes, report, onNotesChange, onReportChange, generationContext }) => {
+const AICommentGenerator: React.FC<AICommentGeneratorProps> = ({ label, notes, report, onNotesChange, onReportChange, generationContext, styleExamples }) => {
   const [isLoading, setIsLoading] = useState(false);
   const notesTextAreaRef = useRef<HTMLTextAreaElement>(null);
   const reportTextAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -27,7 +29,7 @@ const AICommentGenerator: React.FC<AICommentGeneratorProps> = ({ label, notes, r
     }
     setIsLoading(true);
     try {
-      const newReport = await generateReportComment(notes, generationContext);
+      const newReport = await generateReportComment(notes, generationContext, styleExamples);
       onReportChange(newReport);
     } catch (error) {
       console.error("Error generating report:", error);

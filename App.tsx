@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Student, Subject, ClassGroup, Course, Trimester, EvaluationData } from './types';
+import type { Student, Subject, ClassGroup, Course, Trimester, EvaluationData, AppData } from './types';
 import { Grade, TRIMESTERS } from './types';
+import { DEFAULT_STYLE_EXAMPLES } from './constants';
 import StudentList from './components/StudentList';
 import StudentDetail from './components/StudentDetail';
 import ClassTabs from './components/ClassTabs';
@@ -19,19 +20,13 @@ interface ResolvedSubject {
   workedContent: Record<Trimester, string>;
 }
 
-interface AppData {
-    courses: Course[];
-    classGroups: ClassGroup[];
-    subjects: Subject[];
-}
-
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [data, setData] = useState<AppData>({ courses: [], classGroups: [], subjects: [] });
-  const { courses, classGroups, subjects } = data;
+  const [data, setData] = useState<AppData>({ courses: [], classGroups: [], subjects: [], styleExamples: DEFAULT_STYLE_EXAMPLES });
+  const { courses, classGroups, subjects, styleExamples } = data;
 
   // --- SUPABASE AUTH & DATA LOADING ---
   useEffect(() => {
@@ -46,7 +41,7 @@ const App: React.FC = () => {
       setSession(session);
       if (session) loadData(session.user.id);
       else {
-          setData({ courses: [], classGroups: [], subjects: [] });
+          setData({ courses: [], classGroups: [], subjects: [], styleExamples: DEFAULT_STYLE_EXAMPLES });
           setIsLoadingData(false);
       }
     });
@@ -119,7 +114,8 @@ const App: React.FC = () => {
       return {
           courses: migratedCourses,
           classGroups: migratedGroups,
-          subjects: loadedData.subjects
+          subjects: loadedData.subjects,
+          styleExamples: loadedData.styleExamples || DEFAULT_STYLE_EXAMPLES
       };
   };
 
@@ -137,14 +133,24 @@ const App: React.FC = () => {
             setData(migrateData(dbData.content));
         } else {
             const initial = getInitialData();
-            const newData = { courses: initial.initialCourses, classGroups: initial.initialClassGroups, subjects: initial.initialSubjects };
+            const newData = { 
+                courses: initial.initialCourses, 
+                classGroups: initial.initialClassGroups, 
+                subjects: initial.initialSubjects,
+                styleExamples: DEFAULT_STYLE_EXAMPLES
+            };
             setData(newData);
             saveDataToSupabase(userId, newData); 
         }
     } catch (err) {
         console.error("Error carrgant:", err);
         const initial = getInitialData();
-        setData({ courses: initial.initialCourses, classGroups: initial.initialClassGroups, subjects: initial.initialSubjects });
+        setData({ 
+            courses: initial.initialCourses, 
+            classGroups: initial.initialClassGroups, 
+            subjects: initial.initialSubjects,
+            styleExamples: DEFAULT_STYLE_EXAMPLES
+        });
     } finally {
         setIsLoadingData(false);
     }
@@ -174,6 +180,7 @@ const App: React.FC = () => {
   const setCourses = (updater: any) => setData(d => ({ ...d, courses: typeof updater === 'function' ? updater(d.courses) : updater }));
   const setClassGroups = (updater: any) => setData(d => ({ ...d, classGroups: typeof updater === 'function' ? updater(d.classGroups) : updater }));
   const setSubjects = (updater: any) => setData(d => ({ ...d, subjects: typeof updater === 'function' ? updater(d.subjects) : updater }));
+  const setStyleExamples = (newStyle: string) => setData(d => ({ ...d, styleExamples: newStyle }));
 
   const [viewMode, setViewMode] = useState<'main' | 'settings'>('main');
   const [selectedClassGroupId, setSelectedClassGroupId] = useState<string | null>(null);
@@ -194,12 +201,6 @@ const App: React.FC = () => {
   
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
   const [copySuccess, setCopySuccess] = useState('');
-
-  // IMPORTANT: Estat global del trimestre per a l'acció massiva, tot i que StudentDetail té el seu propi estat visual
-  // Per a exportacions massives, assumirem el Trimestre 1 per defecte o podríem afegir un selector global.
-  // De moment, les accions globals (Exportar/Generar) requeriran que l'usuari seleccioni el trimestre si calgués, 
-  // però per simplificar, farem que aquestes funcions acceptin un paràmetre o usin el '1' per defecte si no estem dins un context.
-  // Tanmateix, StudentDetail gestiona el seu propi estat de trimestre.
 
   useEffect(() => {
     const currentClass = classGroups.find(cg => cg.id === selectedClassGroupId);
@@ -362,10 +363,7 @@ const App: React.FC = () => {
   };
 
   const handleUpdateCourseSubjectContent = (courseId: string, subjectId: string, workedContent: string) => {
-      // Nota: Aquesta funció era per a l'antic string. Ara necessitem saber quin trimestre.
-      // Com que el SettingsPage ara gestionarà això, potser aquesta funció es queda obsoleta o la reescrivim
-      // per acceptar el trimestre. Ho farem generic 'Record' update al SettingsPage, però aquí el deixem per compatibilitat o actualització completa.
-      // Reemplaçada per update específic a sota.
+      // Legacy compatibility
   };
 
   const handleUpdateCourseSubjectContentTrimester = (courseId: string, subjectId: string, trimester: Trimester, content: string) => {
@@ -386,7 +384,6 @@ const App: React.FC = () => {
 
   const selectedStudent = useMemo(() => currentStudents.find(s => s.id === selectedStudentId), [currentStudents, selectedStudentId]);
 
-  // Passem les dades 'crues' del curs al StudentDetail perquè ell triï el contingut segons la pestanya
   const resolvedSubjectsForSelectedClass = useMemo((): ResolvedSubject[] => {
     if (!selectedClassGroup) return [];
     const parentCourse = courses.find(c => c.id === selectedClassGroup.courseId);
@@ -396,19 +393,14 @@ const App: React.FC = () => {
       return { 
           id: cs.subjectId, 
           name: subjectInfo?.name ?? 'Desconegut', 
-          workedContent: cs.workedContent // Ara passem tot l'objecte de trimestres
+          workedContent: cs.workedContent 
       };
     }).sort((a, b) => a.name.localeCompare(b.name));
   }, [selectedClassGroup, courses, subjects]);
 
-  // Generar tot per al trimestre 1 (per defecte) o caldria un selector global.
-  // Per simplificar, farem servir el 1r trimestre en l'acció massiva per ara o preguntarem.
-  // Idealment: Passar el trimestre actiu del StudentDetail cap amunt, però estan separats.
-  // Farem un `prompt` simple js per demanar el trimestre si es prem el botó global.
   const handleGenerateAllReports = async () => {
     if (!selectedClassGroup || currentStudents.length === 0) return;
     
-    // Simple prompt for trimester selection
     const trimester = window.prompt("Quin trimestre vols generar? (1, 2, 3 o final)", "1")?.toLowerCase();
     if (!['1', '2', '3', 'final'].includes(trimester || '')) {
         if(trimester) alert("Trimestre no vàlid.");
@@ -418,7 +410,7 @@ const App: React.FC = () => {
     setIsGeneratingAll(true);
     try {
         const t = trimester as Trimester;
-        const updatedStudents = await generateMissingReportsForClass(currentStudents, resolvedSubjectsForSelectedClass, t);
+        const updatedStudents = await generateMissingReportsForClass(currentStudents, resolvedSubjectsForSelectedClass, t, styleExamples);
         const updatedGroups = classGroups.map(cg => cg.id === selectedClassGroupId ? { ...cg, students: updatedStudents } : cg);
         setClassGroups(updatedGroups);
     } catch (error: any) {
@@ -453,6 +445,7 @@ const App: React.FC = () => {
         courses={courses}
         classGroups={classGroups}
         subjects={subjects}
+        styleExamples={styleExamples}
         onAddCourse={handleAddCourse}
         onUpdateCourse={handleUpdateCourse}
         onDeleteCourse={handleDeleteCourse}
@@ -467,8 +460,9 @@ const App: React.FC = () => {
         onDeleteSubject={handleDeleteSubject}
         onAssignSubjectToCourse={handleAssignSubjectToCourse}
         onUnassignSubjectFromCourse={handleUnassignSubjectFromCourse}
-        onUpdateCourseSubjectContent={(cid, sid, wc) => { /* legacy no-op */ }}
+        onUpdateCourseSubjectContent={handleUpdateCourseSubjectContent}
         onUpdateCourseSubjectContentTrimester={handleUpdateCourseSubjectContentTrimester}
+        onUpdateStyleExamples={setStyleExamples}
         onBack={() => setViewMode('main')}
       />
     );
@@ -547,6 +541,7 @@ const App: React.FC = () => {
                           student={selectedStudent}
                           classSubjects={resolvedSubjectsForSelectedClass}
                           onUpdateStudent={handleUpdateStudent}
+                          styleExamples={styleExamples}
                         />
                     ) : (
                         <div className="flex flex-col items-center justify-center h-full text-center p-10 text-slate-400">

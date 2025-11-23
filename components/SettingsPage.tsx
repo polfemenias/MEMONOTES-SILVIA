@@ -12,6 +12,7 @@ interface SettingsPageProps {
   courses: Course[];
   classGroups: ClassGroup[];
   subjects: Subject[];
+  styleExamples?: string;
   onAddCourse: (name: string) => void;
   onUpdateCourse: (id: string, name: string) => void;
   onDeleteCourse: (id: string) => void;
@@ -28,6 +29,7 @@ interface SettingsPageProps {
   onUnassignSubjectFromCourse: (courseId: string, subjectId: string) => void;
   onUpdateCourseSubjectContent: (courseId: string, subjectId: string, workedContent: string) => void;
   onUpdateCourseSubjectContentTrimester: (courseId: string, subjectId: string, trimester: Trimester, workedContent: string) => void;
+  onUpdateStyleExamples: (newStyle: string) => void;
   onBack: () => void;
 }
 
@@ -228,8 +230,18 @@ const CourseContentEditor: React.FC<{
 
 const SettingsPage: React.FC<SettingsPageProps> = (props) => {
   const [activeCourseId, setActiveCourseId] = useState<string | null>(props.courses[0]?.id ?? null);
+  const [activeTab, setActiveTab] = useState<'courses' | 'ai'>('courses');
   const [isManagingMasterSubjects, setIsManagingMasterSubjects] = useState(false);
   const sortedCourses = [...props.courses].sort((a,b) => a.name.localeCompare(b.name));
+  
+  const [localStyle, setLocalStyle] = useState(props.styleExamples || '');
+  const styleRef = useRef<HTMLTextAreaElement>(null);
+  useAutoResizeTextArea(styleRef, localStyle);
+
+  const handleSaveStyle = () => {
+      props.onUpdateStyleExamples(localStyle);
+      alert('Estil guardat correctament!');
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
@@ -239,41 +251,89 @@ const SettingsPage: React.FC<SettingsPageProps> = (props) => {
       </header>
       
       <main className="p-4 md:p-8 space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-            <h2 className="text-xl font-semibold">Gestió de Cursos</h2>
-            <button onClick={() => setIsManagingMasterSubjects(true)} className="text-sm font-medium text-sky-600 hover:text-sky-800 underline">Gestionar Assignatures</button>
+        <div className="flex gap-4 border-b border-slate-200 pb-2 mb-6">
+            <button 
+                onClick={() => setActiveTab('courses')}
+                className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${activeTab === 'courses' ? 'bg-sky-100 text-sky-700 border-b-2 border-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+                Cursos i Classes
+            </button>
+            <button 
+                onClick={() => setActiveTab('ai')}
+                className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${activeTab === 'ai' ? 'bg-sky-100 text-sky-700 border-b-2 border-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+                Personalització IA
+            </button>
         </div>
-        <div className="space-y-4">
-            {sortedCourses.map(course => (
-              <div key={course.id} className="border p-4 rounded-lg bg-slate-100 shadow-sm">
-                <div className="flex items-center justify-between">
-                   <EditableListItem item={{id: course.id, name: course.name}} onUpdate={props.onUpdateCourse} onDelete={props.onDeleteCourse} />
-                   <button onClick={() => setActiveCourseId(prev => prev === course.id ? null : course.id)} className="p-2 rounded-full hover:bg-slate-200">
-                      <svg className={`h-6 w-6 transition-transform ${activeCourseId === course.id ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor"><path d="M12 15.25a1 1 0 01-.71-.29l-4-4a1 1 0 111.42-1.42L12 12.84l3.29-3.3a1 1 0 111.42 1.42l-4 4a1 1 0 01-.71.29z"/></svg>
-                   </button>
+
+        {activeTab === 'courses' ? (
+            <>
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <h2 className="text-xl font-semibold">Gestió de Cursos</h2>
+                    <button onClick={() => setIsManagingMasterSubjects(true)} className="text-sm font-medium text-sky-600 hover:text-sky-800 underline">Gestionar Assignatures</button>
                 </div>
-                {activeCourseId === course.id && (
-                    <CourseContentEditor
-                        course={course}
-                        classGroups={props.classGroups}
-                        subjects={props.subjects}
-                        onUpdateClassGroup={props.onUpdateClassGroup}
-                        onDeleteClassGroup={props.onDeleteClassGroup}
-                        onAddClassGroup={props.onAddClassGroup}
-                        onUpdateStudent={props.onUpdateStudent}
-                        onDeleteStudent={props.onDeleteStudent}
-                        onAddMultipleStudents={props.onAddMultipleStudents}
-                        onUnassignSubjectFromCourse={props.onUnassignSubjectFromCourse}
-                        onUpdateCourseSubjectContentTrimester={props.onUpdateCourseSubjectContentTrimester}
-                        onAssignSubjectToCourse={props.onAssignSubjectToCourse}
+                <div className="space-y-4">
+                    {sortedCourses.map(course => (
+                    <div key={course.id} className="border p-4 rounded-lg bg-slate-100 shadow-sm">
+                        <div className="flex items-center justify-between">
+                        <EditableListItem item={{id: course.id, name: course.name}} onUpdate={props.onUpdateCourse} onDelete={props.onDeleteCourse} />
+                        <button onClick={() => setActiveCourseId(prev => prev === course.id ? null : course.id)} className="p-2 rounded-full hover:bg-slate-200">
+                            <svg className={`h-6 w-6 transition-transform ${activeCourseId === course.id ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor"><path d="M12 15.25a1 1 0 01-.71-.29l-4-4a1 1 0 111.42-1.42L12 12.84l3.29-3.3a1 1 0 111.42 1.42l-4 4a1 1 0 01-.71.29z"/></svg>
+                        </button>
+                        </div>
+                        {activeCourseId === course.id && (
+                            <CourseContentEditor
+                                course={course}
+                                classGroups={props.classGroups}
+                                subjects={props.subjects}
+                                onUpdateClassGroup={props.onUpdateClassGroup}
+                                onDeleteClassGroup={props.onDeleteClassGroup}
+                                onAddClassGroup={props.onAddClassGroup}
+                                onUpdateStudent={props.onUpdateStudent}
+                                onDeleteStudent={props.onDeleteStudent}
+                                onAddMultipleStudents={props.onAddMultipleStudents}
+                                onUnassignSubjectFromCourse={props.onUnassignSubjectFromCourse}
+                                onUpdateCourseSubjectContentTrimester={props.onUpdateCourseSubjectContentTrimester}
+                                onAssignSubjectToCourse={props.onAssignSubjectToCourse}
+                            />
+                        )}
+                    </div>
+                    ))}
+                </div>
+                <div className="mt-6 bg-white p-4 rounded-lg shadow-sm">
+                    <EditableListItem isAdding onAdd={props.onAddCourse} addLabel="Crear un nou curs" />
+                </div>
+            </>
+        ) : (
+            <div className="max-w-4xl mx-auto bg-white p-8 rounded-2xl shadow-lg border border-slate-100">
+                 <h2 className="text-2xl font-bold text-slate-800 mb-4">El teu Estil de Redacció</h2>
+                 <p className="text-slate-600 mb-6 leading-relaxed">
+                    Aquí pots definir com vols que la IA escrigui els informes. Enganxa exemples d'informes anteriors que t'agradin (amb el to, vocabulari i estructura que fas servir habitualment). La IA utilitzarà aquest text com a referència per imitar-te.
+                 </p>
+                 
+                 <div className="relative">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Exemples d'estil:</label>
+                    <textarea 
+                        ref={styleRef}
+                        value={localStyle}
+                        onChange={(e) => setLocalStyle(e.target.value)}
+                        className="w-full p-4 border rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-200 transition-all text-sm leading-relaxed"
+                        placeholder="Enganxa aquí 2 o 3 exemples d'informes..."
+                        rows={15}
                     />
-                )}
-              </div>
-            ))}
-        </div>
-         <div className="mt-6 bg-white p-4 rounded-lg shadow-sm">
-              <EditableListItem isAdding onAdd={props.onAddCourse} addLabel="Crear un nou curs" />
-        </div>
+                 </div>
+                 
+                 <div className="mt-6 flex justify-end">
+                     <button 
+                        onClick={handleSaveStyle}
+                        className="bg-indigo-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-indigo-700 transition-transform active:scale-95"
+                     >
+                        Guardar Estil
+                     </button>
+                 </div>
+            </div>
+        )}
+
       </main>
       
       {isManagingMasterSubjects && (

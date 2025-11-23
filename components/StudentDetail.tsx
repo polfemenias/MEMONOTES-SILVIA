@@ -17,6 +17,7 @@ interface StudentDetailProps {
   student: Student;
   classSubjects: ResolvedSubject[];
   onUpdateStudent: (student: Student) => void;
+  styleExamples?: string;
 }
 
 const AutoResizingTextArea: React.FC<{ value: string, onChange: (val: string) => void, placeholder?: string }> = ({ value, onChange, placeholder }) => {
@@ -50,7 +51,7 @@ const AutoResizingTextArea: React.FC<{ value: string, onChange: (val: string) =>
     )
 }
 
-const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, onUpdateStudent }) => {
+const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, onUpdateStudent, styleExamples }) => {
   const [activeTrimester, setActiveTrimester] = useState<Trimester>('1');
   const [activeTab, setActiveTab] = useState('personal');
   const [isEditingContent, setIsEditingContent] = useState(false);
@@ -95,6 +96,7 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
             onNotesChange={(newNotes) => handleUpdateStudentField('personalAspects', { ...currentEvaluation.personalAspects, notes: newNotes })}
             onReportChange={(newReport) => handleUpdateStudentField('personalAspects', { ...currentEvaluation.personalAspects, report: newReport })}
             generationContext={{ type: 'personal', studentName: student.name, subjects: currentEvaluation.subjects, resolvedSubjects: classSubjects }}
+            styleExamples={styleExamples}
             />
         </div>
       );
@@ -109,6 +111,7 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
             onNotesChange={(newNotes) => handleUpdateStudentField('generalComment', { ...currentEvaluation.generalComment, notes: newNotes })}
             onReportChange={(newReport) => handleUpdateStudentField('generalComment', { ...currentEvaluation.generalComment, report: newReport })}
             generationContext={{ type: 'general' }}
+            styleExamples={styleExamples}
             />
          </div>
       );
@@ -178,6 +181,7 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
                 subjectName: subject.name,
                 workedContent: displayContent,
             }}
+            styleExamples={styleExamples}
           />
         </div>
       </div>
