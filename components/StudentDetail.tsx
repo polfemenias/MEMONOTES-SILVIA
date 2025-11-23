@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { Student, StudentSubject, AITextField, Trimester, EvaluationData } from '../types';
 import { Grade, TRIMESTERS } from '../types';
@@ -183,6 +182,7 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
             onReportChange={(newReport) => handleUpdateStudentSubject(subject.id, { comment: { ...studentSubject.comment, report: newReport } })}
             generationContext={{
                 type: 'subject',
+                studentName: student.name,
                 grade: studentSubject.grade,
                 subjectName: subject.name,
                 workedContent: displayContent,

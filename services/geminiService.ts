@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import type { Grade, Student, StudentSubject, Trimester, AITextField } from "../types";
 import { GENERAL_REPORT_CLOSURES } from "../constants";
@@ -35,7 +34,7 @@ interface ResolvedSubject {
 export type GenerationContext = 
   | { type: 'personal', studentName: string, subjects: StudentSubject[], resolvedSubjects: ResolvedSubject[] }
   | { type: 'general', studentName: string, personalAspects: AITextField, subjects: StudentSubject[], resolvedSubjects: ResolvedSubject[] }
-  | { type: 'subject', grade: Grade, subjectName: string, workedContent: string };
+  | { type: 'subject', studentName: string, grade: Grade, subjectName: string, workedContent: string };
 
 
 export const generateReportComment = async (
@@ -76,6 +75,9 @@ export const generateReportComment = async (
       - Notes personals: "${notes}"
       - Assignatures (context global):
       ${subjectDetails}
+
+      INSTRUCCIONS DE REDACCIÓ:
+      - **PERSONALITZACIÓ (MOLT IMPORTANT)**: Comença el text OBLIGATÒRIAMENT amb el NOM de l'alumne (ex: "El Marc ha...", "La Júlia mostra..."). Fes servir el seu nom per fer el comentari proper i personal.
     `;
 
   } else if (context.type === 'general') {
@@ -104,8 +106,8 @@ export const generateReportComment = async (
       - **NO REPETEIXIS CONTINGUTS**: Està PROHIBIT llistar temes específics de les assignatures (ex: no diguis "ha après a sumar", "ha llegit contes" o "ha fet dibuixos"). Això ja surt als informes específics i seria reiteratiu.
       - **SÍNTESI TRANSVERSAL**: Analitza les dades per trobar **patrons**. Parla de competències transversals: actitud, esforç, evolució global, autonomia, maduresa i hàbits de treball.
       - **ESTRUCTURA DEL PARÀGRAF (Tot en un sol bloc cohesionat)**:
-        1. **Valoració Global i Punts Forts**: Comença valorant com ha anat el trimestre en general, destacant l'actitud o les capacitats generals que es dedueixen de les notes (ex: "Ha estat un trimestre molt profitós on ha mostrat gran interès...", "Es nota una evolució positiva en la seva manera de treballar...").
-        2. **Aspecte a Reforçar (Constructiu)**: Identifica una àrea de millora general (atenció, organització, constància, cura) sense entrar en detalls d'assignatures concretes. (ex: "De cara al proper trimestre, l'animem a guanyar més autonomia...", "Convé continuar treballant la seva atenció per consolidar els aprenentatges...").
+        1. **Valoració Global (INICI AMB NOM)**: Comença la primera frase OBLIGATÒRIAMENT amb el NOM de l'alumne (ex: "El Pau ha tingut...", "La Maria ha mostrat...") i valora com ha anat el trimestre en general.
+        2. **Aspecte a Reforçar (Constructiu)**: Identifica una àrea de millora general (atenció, organització, constància, cura) sense entrar en detalls d'assignatures concretes.
         3. **Tancament**: Acaba amb una frase de calidesa, ànims i agraïment a la família, utilitzant un estil similar als exemples de tancament.
 
       REFERÈNCIA D'ESTIL FINAL (Inspiració per a la frase final):
@@ -118,17 +120,19 @@ export const generateReportComment = async (
 
       TASCA:
       Redacta un comentari d'avaluació per a l'assignatura: "${context.subjectName}".
+      Alumne: ${context.studentName}
       Nota global de l'alumne: "${context.grade}".
 
       NOTES BRUTES DEL MESTRE (Basat en això): "${notes}"
 
       INSTRUCCIONS CRÍTIQUES DE REDACCIÓ:
-      1. **NO llistis els continguts treballats**: Els pares ja tenen el temari en un altre apartat. No expliquis QUÈ s'ha fet, sinó COM ho ha fet l'alumne.
-      2. **Síntesi (5-6 línies)**: Redacta un text concís (entre 5 i 6 línies) que sintetitzi les observacions.
-      3. **Estructura**:
-         - Comença destacant els **punts forts** i el que ha assolit satisfactòriament.
+      1. **PERSONALITZACIÓ (MOLT IMPORTANT)**: El text HA DE començar OBLIGATÒRIAMENT amb el NOM de l'alumne (ex: "El ${context.studentName} ha assolit...", "La ${context.studentName} ha treballat...").
+      2. **NO llistis els continguts treballats**: Els pares ja tenen el temari en un altre apartat. No expliquis QUÈ s'ha fet, sinó COM ho ha fet l'alumne.
+      3. **Síntesi (5-6 línies)**: Redacta un text concís (entre 5 i 6 línies) que sintetitzi les observacions.
+      4. **Estructura**:
+         - Comença (amb el nom) destacant els **punts forts** i el que ha assolit satisfactòriament.
          - Continua comentant els **punts a millorar** o les dificultats que ha tingut (sempre amb to constructiu).
-      4. **Estil**: Professional, clar i basat en els exemples d'estil proporcionats (si n'hi ha).
+      5. **Estil**: Professional, clar i basat en els exemples d'estil proporcionats (si n'hi ha).
 
       Genera només el text final del comentari.
     `;
@@ -177,10 +181,12 @@ export const generateMissingReportsForClass = async (students: Student[], classS
 
                     const context: GenerationContext = {
                         type: 'subject',
+                        studentName: student.name,
                         grade: ss.grade,
                         subjectName: subjectInfo.name,
                         workedContent: workedContent,
-                    };
+                    }; 
+                    
                     const promise = generateReportComment(ss.comment.notes, context, styleExamples)
                         .then(report => {
                              const targetSub = evalData.subjects.find(s => s.subjectId === ss.subjectId);
@@ -192,19 +198,13 @@ export const generateMissingReportsForClass = async (students: Student[], classS
         });
     });
 
-    // Wait for subjects and personal aspects to be ready before generating General Comment
-    // This is a simple approximation. For perfect dependency, we'd need sequential chaining, 
-    // but Promise.all is faster. We assume notes exist.
     await Promise.all(generationPromises);
     
-    // 3. Generate General Comment (now that we hopefully have more reports generated or at least the notes)
+    // 3. Generate General Comment
     const generalPromises: Promise<void>[] = [];
     studentsCopy.forEach(student => {
         const evalData = student.evaluations[trimester];
-        // Allow generating General comment even if notes are empty, because it aggregates other data
         if (!evalData.generalComment.report) {
-             // We can generate if there are at least notes OR if there is other data to summarize (Personal aspects or subjects)
-             // Even if notes are empty, we allow generation for General Comment now.
              const hasData = evalData.generalComment.notes || evalData.personalAspects.notes || evalData.subjects.some(s => s.comment.notes || s.grade);
              
              if (hasData) {
