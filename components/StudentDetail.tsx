@@ -110,7 +110,13 @@ const StudentDetail: React.FC<StudentDetailProps> = ({ student, classSubjects, o
             report={currentEvaluation.generalComment.report}
             onNotesChange={(newNotes) => handleUpdateStudentField('generalComment', { ...currentEvaluation.generalComment, notes: newNotes })}
             onReportChange={(newReport) => handleUpdateStudentField('generalComment', { ...currentEvaluation.generalComment, report: newReport })}
-            generationContext={{ type: 'general' }}
+            generationContext={{ 
+                type: 'general',
+                studentName: student.name,
+                personalAspects: currentEvaluation.personalAspects,
+                subjects: currentEvaluation.subjects,
+                resolvedSubjects: classSubjects
+            }}
             styleExamples={styleExamples}
             />
          </div>

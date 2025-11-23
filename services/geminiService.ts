@@ -1,6 +1,7 @@
 
 import { GoogleGenAI } from "@google/genai";
-import type { Grade, Student, StudentSubject, Trimester } from "../types";
+import type { Grade, Student, StudentSubject, Trimester, AITextField } from "../types";
+import { GENERAL_REPORT_CLOSURES } from "../constants";
 
 const getApiKey = (): string | undefined => {
   let key: string | undefined = undefined;
@@ -33,7 +34,7 @@ interface ResolvedSubject {
 
 export type GenerationContext = 
   | { type: 'personal', studentName: string, subjects: StudentSubject[], resolvedSubjects: ResolvedSubject[] }
-  | { type: 'general' }
+  | { type: 'general', studentName: string, personalAspects: AITextField, subjects: StudentSubject[], resolvedSubjects: ResolvedSubject[] }
   | { type: 'subject', grade: Grade, subjectName: string, workedContent: string };
 
 
@@ -77,18 +78,46 @@ export const generateReportComment = async (
       ${subjectDetails}
     `;
 
-  } else {
-    let contextPrompt = '';
-    if (context.type === 'subject') {
-        contextPrompt = `
-        - Assignatura: "${context.subjectName}"
-        - Nota: "${context.grade}"
-        - Continguts treballats: "${context.workedContent || 'No especificats'}"
-        `;
-    } else if (context.type === 'general') {
-        contextPrompt = '- Tipus: Valoració general del trimestre.';
-    }
+  } else if (context.type === 'general') {
+    const subjects = context.resolvedSubjects;
+    
+    const subjectDetails = context.subjects.map(ss => {
+        const subjectInfo = subjects.find(s => s.id === ss.subjectId);
+        return `- ${subjectInfo?.name || 'Assignatura'}: [Nota: ${ss.grade}]. Notes: "${ss.comment.notes || ''}"`;
+    }).join('\n');
 
+    prompt = `
+      ${styleInstruction}
+
+      TASCA:
+      Ets un assistent expert per a un mestre de primària. Redacta l'apartat "Comentari General / Valoració Global" del trimestre per a l'alumne: ${context.studentName}.
+
+      OBJECTIU:
+      El comentari ha de sintetitzar com ha anat el trimestre basant-se en TOTA la informació disponible (aspectes personals i rendiment acadèmic). 
+      No et limitis a les notes que t'he passat ara; fes una valoració global coherent.
+
+      DADES DE L'ALUMNE:
+      1. Notes i comentaris dels Aspectes Personals:
+         "${context.personalAspects.notes} ${context.personalAspects.report}"
+      
+      2. Rendiment a les assignatures:
+      ${subjectDetails}
+
+      3. Notes específiques del mestre per aquest comentari general (si n'hi ha):
+         "${notes}"
+
+      INSTRUCCIONS DE TANCAMENT:
+      Analitza les notes i comentaris anteriors.
+      - Si el progrés és generalment POSITIU (Assoliments notables/excel·lents/satisfactoris sense problemes greus), inspira't en aquests tancaments:
+        ${JSON.stringify(GENERAL_REPORT_CLOSURES.POSITIVE)}
+      
+      - Si hi ha DIFICULTATS significatives (No assolits, comentaris de millora urgent), inspira't en aquests tancaments:
+        ${JSON.stringify(GENERAL_REPORT_CLOSURES.NEEDS_REINFORCEMENT)}
+
+      El resultat final ha de ser un paràgraf ben redactat, professional, proper i en Català.
+    `;
+
+  } else if (context.type === 'subject') {
     prompt = `
       ${styleInstruction}
 
@@ -96,7 +125,9 @@ export const generateReportComment = async (
       Redacta un comentari d'informe escolar en català, basant-te en les següents dades i imitant l'estil dels exemples superiors (si n'hi ha).
 
       Context específic:
-      ${contextPrompt}
+      - Assignatura: "${context.subjectName}"
+      - Nota: "${context.grade}"
+      - Continguts treballats: "${context.workedContent || 'No especificats'}"
       
       - NOTES BRUTES DEL MESTRE: "${notes}"
       
@@ -128,6 +159,7 @@ export const generateMissingReportsForClass = async (students: Student[], classS
     studentsCopy.forEach(student => {
         const evalData = student.evaluations[trimester];
 
+        // 1. Generate Personal Aspects first if missing (context for general)
         if (!evalData.personalAspects.report && evalData.personalAspects.notes) {
             const context: GenerationContext = { type: 'personal', studentName: student.name, subjects: evalData.subjects, resolvedSubjects: classSubjects };
             const promise = generateReportComment(evalData.personalAspects.notes, context, styleExamples)
@@ -135,13 +167,7 @@ export const generateMissingReportsForClass = async (students: Student[], classS
             generationPromises.push(promise);
         }
 
-        if (!evalData.generalComment.report && evalData.generalComment.notes) {
-            const context: GenerationContext = { type: 'general' };
-            const promise = generateReportComment(evalData.generalComment.notes, context, styleExamples)
-                .then(report => { evalData.generalComment.report = report; });
-            generationPromises.push(promise);
-        }
-
+        // 2. Generate Subjects
         evalData.subjects.forEach(ss => {
             if (!ss.comment.report && ss.comment.notes) {
                 const subjectInfo = classSubjects.find(s => s.id === ss.subjectId);
@@ -167,6 +193,35 @@ export const generateMissingReportsForClass = async (students: Student[], classS
         });
     });
 
+    // Wait for subjects and personal aspects to be ready before generating General Comment
+    // This is a simple approximation. For perfect dependency, we'd need sequential chaining, 
+    // but Promise.all is faster. We assume notes exist.
     await Promise.all(generationPromises);
+    
+    // 3. Generate General Comment (now that we hopefully have more reports generated or at least the notes)
+    const generalPromises: Promise<void>[] = [];
+    studentsCopy.forEach(student => {
+        const evalData = student.evaluations[trimester];
+        // Allow generating General comment even if notes are empty, because it aggregates other data
+        if (!evalData.generalComment.report) {
+             // We can generate if there are at least notes OR if there is other data to summarize
+             const hasData = evalData.generalComment.notes || evalData.personalAspects.notes || evalData.subjects.some(s => s.comment.notes);
+             
+             if (hasData) {
+                const context: GenerationContext = { 
+                    type: 'general', 
+                    studentName: student.name, 
+                    personalAspects: evalData.personalAspects,
+                    subjects: evalData.subjects,
+                    resolvedSubjects: classSubjects
+                };
+                const promise = generateReportComment(evalData.generalComment.notes, context, styleExamples)
+                    .then(report => { evalData.generalComment.report = report; });
+                generalPromises.push(promise);
+             }
+        }
+    });
+
+    await Promise.all(generalPromises);
     return studentsCopy;
 };
