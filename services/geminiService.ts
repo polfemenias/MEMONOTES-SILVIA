@@ -117,16 +117,20 @@ export const generateReportComment = async (
       ${styleInstruction}
 
       TASCA:
-      Redacta un comentari d'informe escolar en català, basant-te en les següents dades i imitant l'estil dels exemples superiors (si n'hi ha).
+      Redacta un comentari d'avaluació per a l'assignatura: "${context.subjectName}".
+      Nota global de l'alumne: "${context.grade}".
 
-      Context específic:
-      - Assignatura: "${context.subjectName}"
-      - Nota: "${context.grade}"
-      - Continguts treballats: "${context.workedContent || 'No especificats'}"
-      
-      - NOTES BRUTES DEL MESTRE: "${notes}"
-      
-      El text final ha de ser polit, professional però proper, i sense introduccions tipus "Aquí tens el text...". Directament el redactat.
+      NOTES BRUTES DEL MESTRE (Basat en això): "${notes}"
+
+      INSTRUCCIONS CRÍTIQUES DE REDACCIÓ:
+      1. **NO llistis els continguts treballats**: Els pares ja tenen el temari en un altre apartat. No expliquis QUÈ s'ha fet, sinó COM ho ha fet l'alumne.
+      2. **Síntesi (5-6 línies)**: Redacta un text concís (entre 5 i 6 línies) que sintetitzi les observacions.
+      3. **Estructura**:
+         - Comença destacant els **punts forts** i el que ha assolit satisfactòriament.
+         - Continua comentant els **punts a millorar** o les dificultats que ha tingut (sempre amb to constructiu).
+      4. **Estil**: Professional, clar i basat en els exemples d'estil proporcionats (si n'hi ha).
+
+      Genera només el text final del comentari.
     `;
   }
 

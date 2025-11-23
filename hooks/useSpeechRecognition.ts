@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
+
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 interface SpeechRecognitionHook {
   isListening: boolean;
@@ -22,9 +23,10 @@ const capitalizeFirstLetter = (string: string) => {
 export const useSpeechRecognition = ({ onTranscript }: SpeechRecognitionOptions): SpeechRecognitionHook => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  
+  // Refs to persist across renders without triggering effects
   const recognitionRef = useRef<any | null>(null);
-  // Ref to track if the user *intentionally* stopped the recording
-  const userStoppedRef = useRef(false);
+  const userStoppedRef = useRef(false); 
 
   useEffect(() => {
     if (!isSupported) {
@@ -35,36 +37,7 @@ export const useSpeechRecognition = ({ onTranscript }: SpeechRecognitionOptions)
     const recognition = new SpeechRecognitionApi();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'ca-ES'; // Catalan
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      userStoppedRef.current = false;
-    };
-
-    recognition.onend = () => {
-      // If the user didn't click stop, but the browser stopped it (silence), restart it.
-      if (!userStoppedRef.current) {
-         try {
-            recognition.start();
-         } catch (e) {
-            // Sometimes it might fail to restart immediately
-            setIsListening(false);
-         }
-      } else {
-         setIsListening(false);
-         setTranscript('');
-      }
-    };
-
-    recognition.onerror = (event: any) => {
-      // If not-allowed or service-not-allowed, we should probably stop trying
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          userStoppedRef.current = true;
-          setIsListening(false);
-      }
-      console.error('Speech recognition error:', event.error);
-    };
+    recognition.lang = 'ca-ES';
 
     recognition.onresult = (event: any) => {
       let finalTranscriptChunk = '';
@@ -83,36 +56,77 @@ export const useSpeechRecognition = ({ onTranscript }: SpeechRecognitionOptions)
         }
       }
     };
+
+    // Robust handling of the 'end' event to simulate true continuous listening
+    recognition.onend = () => {
+        // Only switch state to "not listening" if the user EXPLICITLY stopped it.
+        if (userStoppedRef.current) {
+            setIsListening(false);
+        } else {
+            // If it stopped due to silence or network, restart immediately.
+            // We keep isListening = true so the UI doesn't flicker.
+            try {
+                recognition.start();
+            } catch (e) {
+                // If immediate restart fails (race condition), wait slightly and retry
+                setTimeout(() => {
+                    if (!userStoppedRef.current) {
+                        try {
+                            recognition.start();
+                        } catch (e2) {
+                            console.error("Failed to restart speech recognition", e2);
+                            setIsListening(false);
+                            userStoppedRef.current = true;
+                        }
+                    }
+                }, 100);
+            }
+        }
+    };
+
+    recognition.onerror = (event: any) => {
+        // 'no-speech' happens when silence is detected. We ignore it because onend will restart.
+        if (event.error === 'no-speech') {
+            return;
+        }
+        
+        console.warn('Speech recognition error:', event.error);
+        
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            setIsListening(false);
+            userStoppedRef.current = true;
+        }
+    };
     
     recognitionRef.current = recognition;
 
     return () => {
         if(recognitionRef.current) {
-            userStoppedRef.current = true; // Ensure we don't auto-restart on unmount
-            recognitionRef.current.stop();
+            userStoppedRef.current = true; 
+            recognitionRef.current.abort(); // abort is faster than stop for unmounting
         }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onTranscript]);
 
-  const startListening = () => {
-    if (recognitionRef.current && !isListening) {
-      setTranscript('');
+  const startListening = useCallback(() => {
+    if (recognitionRef.current) {
       userStoppedRef.current = false;
+      setIsListening(true);
       try {
         recognitionRef.current.start();
       } catch (e) {
         console.error("Error starting speech recognition:", e);
       }
     }
-  };
+  }, []);
 
-  const stopListening = () => {
-    if (recognitionRef.current && isListening) {
-      userStoppedRef.current = true; // Mark as intentional stop
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current) {
+      userStoppedRef.current = true;
+      setIsListening(false);
       recognitionRef.current.stop();
     }
-  };
+  }, []);
 
   return { isListening, transcript, startListening, stopListening };
 };

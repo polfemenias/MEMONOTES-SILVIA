@@ -61,7 +61,7 @@ const AICommentGenerator: React.FC<AICommentGeneratorProps> = ({ label, notes, r
             placeholder={placeholderText}
           />
           <div className="absolute top-2 right-2">
-            <SpeechToTextButton onTranscript={(transcript) => onNotesChange(notes ? `${notes}\n${transcript}`: transcript)} />
+            <SpeechToTextButton onTranscript={(transcript) => onNotesChange(notes ? `${notes} ${transcript}`: transcript)} />
           </div>
         </div>
       </div>
@@ -101,7 +101,7 @@ const AICommentGenerator: React.FC<AICommentGeneratorProps> = ({ label, notes, r
               placeholder="Aquí apareixerà l'informe generat..."
             />
             <div className="absolute top-2 right-2">
-                <SpeechToTextButton onTranscript={(transcript) => onReportChange(report ? `${report}\n${transcript}`: transcript)} />
+                <SpeechToTextButton onTranscript={(transcript) => onReportChange(report ? `${report} ${transcript}`: transcript)} />
             </div>
           </div>
            <p className="text-xs text-slate-500 mt-1">Pots editar manualment aquest text abans d'exportar-lo.</p>
