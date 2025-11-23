@@ -23,10 +23,14 @@ const AICommentGenerator: React.FC<AICommentGeneratorProps> = ({ label, notes, r
   useAutoResizeTextArea(reportTextAreaRef, report);
 
   const handleGenerate = async () => {
-    if (!notes.trim()) {
+    // Permetre generar sense notes si és el comentari General (auto-resum)
+    const isGeneral = generationContext.type === 'general';
+
+    if (!notes.trim() && !isGeneral) {
       alert('Introdueix primer algunes notes per generar el comentari.');
       return;
     }
+    
     setIsLoading(true);
     try {
       const newReport = await generateReportComment(notes, generationContext, styleExamples);
@@ -39,6 +43,10 @@ const AICommentGenerator: React.FC<AICommentGeneratorProps> = ({ label, notes, r
     }
   };
 
+  const placeholderText = generationContext.type === 'general'
+    ? "Deixa en blanc per generar un resum automàtic basat en les assignatures, o afegeix notes específiques..."
+    : "Introdueix o dicta les teves notes aquí...";
+
   return (
     <div className="space-y-4">
       <div>
@@ -50,7 +58,7 @@ const AICommentGenerator: React.FC<AICommentGeneratorProps> = ({ label, notes, r
             onChange={(e) => onNotesChange(e.target.value)}
             rows={3}
             className="w-full p-3 pr-12 border rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 transition resize-none overflow-hidden"
-            placeholder="Introdueix o dicta les teves notes aquí..."
+            placeholder={placeholderText}
           />
           <div className="absolute top-2 right-2">
             <SpeechToTextButton onTranscript={(transcript) => onNotesChange(notes ? `${notes}\n${transcript}`: transcript)} />
@@ -74,7 +82,7 @@ const AICommentGenerator: React.FC<AICommentGeneratorProps> = ({ label, notes, r
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                 </svg>
-                {report.trim() ? 'Actualitzar Informe (IA)' : 'Generar Informe (IA)'}
+                {report.trim() ? 'Actualitzar Informe (IA)' : (generationContext.type === 'general' && !notes.trim() ? 'Generar Resum Automàtic (IA)' : 'Generar Informe (IA)')}
             </>
           )}
         </button>

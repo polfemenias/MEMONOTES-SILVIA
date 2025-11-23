@@ -86,6 +86,8 @@ export const generateReportComment = async (
         return `- ${subjectInfo?.name || 'Assignatura'}: [Nota: ${ss.grade}]. Notes: "${ss.comment.notes || ''}"`;
     }).join('\n');
 
+    const specificNotes = notes.trim() ? `"${notes}"` : "Cap nota específica. Genera el comentari basant-te únicament en les dades acadèmiques i personals disponibles.";
+
     prompt = `
       ${styleInstruction}
 
@@ -93,28 +95,35 @@ export const generateReportComment = async (
       Ets un assistent expert per a un mestre de primària. Redacta l'apartat "Comentari General / Valoració Global" del trimestre per a l'alumne: ${context.studentName}.
 
       OBJECTIU:
-      El comentari ha de sintetitzar com ha anat el trimestre basant-se en TOTA la informació disponible (aspectes personals i rendiment acadèmic). 
-      No et limitis a les notes que t'he passat ara; fes una valoració global coherent.
+      El comentari ha de ser una síntesi clara i professional de l'evolució de l'alumne.
+      Has d'utilitzar les següents dades per decidir si el trimestre ha estat positiu o si necessita reforç.
 
       DADES DE L'ALUMNE:
-      1. Notes i comentaris dels Aspectes Personals:
+      1. Aspectes Personals:
          "${context.personalAspects.notes} ${context.personalAspects.report}"
       
-      2. Rendiment a les assignatures:
+      2. Rendiment Acadèmic (Assignatures):
       ${subjectDetails}
 
-      3. Notes específiques del mestre per aquest comentari general (si n'hi ha):
-         "${notes}"
+      3. Notes específiques del mestre (Opcional):
+         ${specificNotes}
 
-      INSTRUCCIONS DE TANCAMENT:
-      Analitza les notes i comentaris anteriors.
-      - Si el progrés és generalment POSITIU (Assoliments notables/excel·lents/satisfactoris sense problemes greus), inspira't en aquests tancaments:
-        ${JSON.stringify(GENERAL_REPORT_CLOSURES.POSITIVE)}
+      INSTRUCCIONS DE REDACCIÓ:
+      - Si NO hi ha notes específiques, genera un paràgraf de tancament sintètic utilitzant les plantilles de sota com a inspiració.
+      - Si hi ha notes, integra-les en el discurs.
+      - El to ha de ser proper i motivador.
+
+      PLANTILLES DE TANCAMENT (Utilitza aquestes frases com a base):
       
-      - Si hi ha DIFICULTATS significatives (No assolits, comentaris de millora urgent), inspira't en aquests tancaments:
-        ${JSON.stringify(GENERAL_REPORT_CLOSURES.NEEDS_REINFORCEMENT)}
+      CAS A (Evolució Positiva / Bona actitud / Notes satisfactòries o superiors):
+      Utilitza o adapta frases com:
+      ${JSON.stringify(GENERAL_REPORT_CLOSURES.POSITIVE)}
+      
+      CAS B (Necessita Reforç / Dificultats / Actitud millorable):
+      Utilitza o adapta frases com:
+      ${JSON.stringify(GENERAL_REPORT_CLOSURES.NEEDS_REINFORCEMENT)}
 
-      El resultat final ha de ser un paràgraf ben redactat, professional, proper i en Català.
+      IMPORTANT: El text ha de ser en Català, proper i professional. No inventis fets que no estiguin a les dades.
     `;
 
   } else if (context.type === 'subject') {
@@ -204,8 +213,9 @@ export const generateMissingReportsForClass = async (students: Student[], classS
         const evalData = student.evaluations[trimester];
         // Allow generating General comment even if notes are empty, because it aggregates other data
         if (!evalData.generalComment.report) {
-             // We can generate if there are at least notes OR if there is other data to summarize
-             const hasData = evalData.generalComment.notes || evalData.personalAspects.notes || evalData.subjects.some(s => s.comment.notes);
+             // We can generate if there are at least notes OR if there is other data to summarize (Personal aspects or subjects)
+             // Even if notes are empty, we allow generation for General Comment now.
+             const hasData = evalData.generalComment.notes || evalData.personalAspects.notes || evalData.subjects.some(s => s.comment.notes || s.grade);
              
              if (hasData) {
                 const context: GenerationContext = { 
