@@ -94,26 +94,23 @@ export const generateReportComment = async (
       TASCA:
       Ets un assistent expert per a un mestre de primària. Redacta l'apartat "Comentari General / Valoració Global" del trimestre per a l'alumne: ${context.studentName}.
 
-      DADES DE L'ALUMNE (Només per a context intern, NO ho has de resumir):
+      DADES DE L'ALUMNE (Analitza-les per extreure punts forts i punts de millora reals):
       1. Aspectes Personals: "${context.personalAspects.notes} ${context.personalAspects.report}"
-      2. Rendiment Acadèmic: ${subjectDetails}
+      2. Rendiment Acadèmic: 
+      ${subjectDetails}
       3. Notes específiques del mestre: ${specificNotes}
 
-      INSTRUCCIONS DE REDACCIÓ (MOLT IMPORTANT):
-      - L'usuari vol **UN ÚNIC PARÀGRAF** sintètic de tancament.
-      - **NO** facis un resum de les assignatures ni dels aspectes personals (aquesta informació ja surt detallada abans).
-      - El text ha de ser únicament una **conclusió final**, agraint l'esforç o demanant treball, i desitjant bon tancament de trimestre.
-      - Sigues molt concís (màxim 4-5 línies).
-
-      PLANTILLES DE TANCAMENT (Fes servir aquest estil o adapta aquestes frases directament):
+      INSTRUCCIONS DE REDACCIÓ (Estricte):
+      - Genera **UN ÚNIC PARÀGRAF** (màxim 5-7 línies).
+      - **ESTRUCTURA DEL PARÀGRAF**:
+        1. **Punts Positius**: Comença destacant específicament què ha anat bé segons les dades (ex: "Ha destacat en l'àmbit de...", "Mostra una gran actitud en...", "Ha millorat en..."). No t'inventis res, usa les dades.
+        2. **Constructiu**: Afegeix un punt de millora, consell o repte per al proper trimestre de forma constructiva (ex: "De cara al proper trimestre, l'animem a...", "Convé reforçar...").
+        3. **Tancament**: Acaba amb una frase d'ànims i agraïment, similar als exemples de tancament.
       
-      SI L'ALUMNE VA BÉ (Evolució Positiva / Bona actitud / Notes satisfactòries o superiors):
-      ${JSON.stringify(GENERAL_REPORT_CLOSURES.POSITIVE)}
-      
-      SI L'ALUMNE TÉ DIFICULTATS (Necessita Reforç / Actitud millorable):
-      ${JSON.stringify(GENERAL_REPORT_CLOSURES.NEEDS_REINFORCEMENT)}
+      - El to ha de ser proper, professional i motivador.
 
-      IMPORTANT: El text ha de ser en Català, curt, proper i professional.
+      REFERÈNCIA D'ESTIL FINAL (Inspiració per a la frase final):
+      ${JSON.stringify(GENERAL_REPORT_CLOSURES)}
     `;
 
   } else if (context.type === 'subject') {
