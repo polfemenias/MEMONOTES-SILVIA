@@ -86,7 +86,7 @@ export const generateReportComment = async (
         return `- ${subjectInfo?.name || 'Assignatura'}: [Nota: ${ss.grade}]. Notes: "${ss.comment.notes || ''}"`;
     }).join('\n');
 
-    const specificNotes = notes.trim() ? `"${notes}"` : "Cap nota específica. Genera el comentari basant-te únicament en les dades acadèmiques i personals disponibles.";
+    const specificNotes = notes.trim() ? `"${notes}"` : "Cap nota específica. Genera el comentari basant-te en l'anàlisi global de les dades acadèmiques i personals.";
 
     prompt = `
       ${styleInstruction}
@@ -94,20 +94,19 @@ export const generateReportComment = async (
       TASCA:
       Ets un assistent expert per a un mestre de primària. Redacta l'apartat "Comentari General / Valoració Global" del trimestre per a l'alumne: ${context.studentName}.
 
-      DADES DE L'ALUMNE (Analitza-les per extreure punts forts i punts de millora reals):
+      DADES DE L'ALUMNE (Aquestes dades són per al teu anàlisi, NO per repetir-les literalment):
       1. Aspectes Personals: "${context.personalAspects.notes} ${context.personalAspects.report}"
-      2. Rendiment Acadèmic: 
+      2. Rendiment Acadèmic (Assignatures):
       ${subjectDetails}
-      3. Notes específiques del mestre: ${specificNotes}
+      3. Notes específiques del mestre (Si n'hi ha): ${specificNotes}
 
-      INSTRUCCIONS DE REDACCIÓ (Estricte):
-      - Genera **UN ÚNIC PARÀGRAF** (màxim 5-7 línies).
-      - **ESTRUCTURA DEL PARÀGRAF**:
-        1. **Punts Positius**: Comença destacant específicament què ha anat bé segons les dades (ex: "Ha destacat en l'àmbit de...", "Mostra una gran actitud en...", "Ha millorat en..."). No t'inventis res, usa les dades.
-        2. **Constructiu**: Afegeix un punt de millora, consell o repte per al proper trimestre de forma constructiva (ex: "De cara al proper trimestre, l'animem a...", "Convé reforçar...").
-        3. **Tancament**: Acaba amb una frase d'ànims i agraïment, similar als exemples de tancament.
-      
-      - El to ha de ser proper, professional i motivador.
+      INSTRUCCIONS DE REDACCIÓ (MOLT IMPORTANT):
+      - **NO REPETEIXIS CONTINGUTS**: Està PROHIBIT llistar temes específics de les assignatures (ex: no diguis "ha après a sumar", "ha llegit contes" o "ha fet dibuixos"). Això ja surt als informes específics i seria reiteratiu.
+      - **SÍNTESI TRANSVERSAL**: Analitza les dades per trobar **patrons**. Parla de competències transversals: actitud, esforç, evolució global, autonomia, maduresa i hàbits de treball.
+      - **ESTRUCTURA DEL PARÀGRAF (Tot en un sol bloc cohesionat)**:
+        1. **Valoració Global i Punts Forts**: Comença valorant com ha anat el trimestre en general, destacant l'actitud o les capacitats generals que es dedueixen de les notes (ex: "Ha estat un trimestre molt profitós on ha mostrat gran interès...", "Es nota una evolució positiva en la seva manera de treballar...").
+        2. **Aspecte a Reforçar (Constructiu)**: Identifica una àrea de millora general (atenció, organització, constància, cura) sense entrar en detalls d'assignatures concretes. (ex: "De cara al proper trimestre, l'animem a guanyar més autonomia...", "Convé continuar treballant la seva atenció per consolidar els aprenentatges...").
+        3. **Tancament**: Acaba amb una frase de calidesa, ànims i agraïment a la família, utilitzant un estil similar als exemples de tancament.
 
       REFERÈNCIA D'ESTIL FINAL (Inspiració per a la frase final):
       ${JSON.stringify(GENERAL_REPORT_CLOSURES)}
